@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>A Benchmark for Gas Source Localization toward Rapid Leak Removal in Cleanrooms</title>
+    <link href="https://fonts.googleapis.com/css?family=Google+Sans:400,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.css"
+          integrity="sha384-3rdsX6e5mueWyoweR9NIVmtEsUkokpBT/0ALqKKIBMr9j4qhHkaIkAcGgsE6uVlp" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+            integrity="sha384-QFFtAGzvvj+bfgCGxXJlNZZR1nXEZgvG8tDLCCY1F19xl20WlfTYgguB4VcNdxYk" crossorigin="anonymous"></script>
+    <script defer src="assets/render-math.js"></script>
+    <style>
+        :root {
+            /* Blue from the iCIR Lab site's highlighted I. */
+            --color-primary: #0055ff;
+            /* Supporting blues used on the lab site. */
+            --color-secondary: #2383e2;
+            --color-primary-hover: #01337a;
+            /* Muted iCIR blue for names and interactive controls. */
+            --color-accent: #356dcc;
+            --color-accent-hover: #2b5db3;
+            /* Neutral and surface colors for this project page. */
+            --color-heading: #111111;
+            --color-text: #333333;
+            --color-muted: #5b6472;
+            --color-background: #ffffff;
+            --color-surface: #f4f7ff;
+            --color-border: #dce5f5;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--color-background);
+            color: var(--color-text);
+            font-family: 'Google Sans', Arial, sans-serif;
+            font-size: 18px;
+            line-height: 1.7;
+        }
+
+        html {
+            scroll-padding-top: var(--header-offset, 110px);
+            scroll-behavior: smooth;
+        }
+
+        html.switching-language {
+            overflow-anchor: none;
+            scroll-behavior: auto;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+        }
+
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-top: 4px solid var(--color-accent);
+            border-bottom: 1px solid var(--color-border);
+            background: rgb(255 255 255 / 97%);
+        }
+
+        .top-nav {
+            display: grid;
+            grid-template-columns: var(--header-side-width, 340px) minmax(0, 1fr) var(--header-side-width, 340px);
+            align-items: center;
+            gap: 24px;
+            width: 100%;
+            padding: 12px 24px;
+        }
+
+        .lab-brand {
+            display: inline-flex;
+            justify-self: start;
+            align-items: center;
+            flex-shrink: 0;
+            min-height: 44px;
+            border-radius: 4px;
+            grid-column: 1;
+            grid-row: 1;
+        }
+
+        .lab-brand img {
+            display: block;
+            width: 112px;
+            height: auto;
+        }
+
+        .top-nav-controls {
+            display: flex;
+            justify-self: end;
+            align-items: center;
+            flex-shrink: 0;
+            gap: 16px;
+            grid-column: 3;
+            grid-row: 1;
+        }
+
+        .section-nav {
+            min-width: 0;
+            overflow-x: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--color-border) transparent;
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        .menu-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            grid-column: 2;
+            grid-row: 1;
+            justify-self: center;
+            width: 44px;
+            height: 44px;
+            padding: 10px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            background: var(--color-background);
+            color: var(--color-accent);
+            cursor: pointer;
+        }
+
+        .menu-toggle:hover { background: var(--color-surface); }
+        .menu-toggle:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+        .menu-toggle[hidden], #section-navigation[hidden] { display: none; }
+        .menu-toggle svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+        .menu-close-icon { display: none; }
+        .menu-toggle[aria-expanded="true"] .menu-open-icon { display: none; }
+        .menu-toggle[aria-expanded="true"] .menu-close-icon { display: block; }
+
+        .site-header[data-menu-ready] #section-navigation { overflow-x: hidden; }
+        .site-header[data-menu-compact="true"] .top-nav {
+            grid-template-columns: minmax(0, 1fr) auto auto;
+        }
+        .site-header[data-menu-compact="true"] .menu-toggle {
+            justify-self: end;
+        }
+        .site-header[data-menu-compact="true"] #section-navigation {
+            position: absolute;
+            top: 100%;
+            left: 12px;
+            right: 12px;
+            max-height: calc(100vh - var(--header-offset, 110px) - 16px);
+            max-height: calc(100dvh - var(--header-offset, 110px) - 16px);
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            background: var(--color-background);
+            box-shadow: 0 12px 32px rgb(29 57 103 / 12%);
+        }
+
+        .site-header[data-menu-compact="true"] #section-navigation ul {
+            flex-direction: column;
+            width: 100%;
+            min-width: 0;
+            padding: 8px;
+        }
+
+        .site-header[data-menu-compact="true"] #section-navigation a {
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        /* An inert, clipped copy measures the full row even while the menu is closed. */
+        .section-nav-measure {
+            position: absolute;
+            width: 0;
+            height: 0;
+            overflow: hidden;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .section-nav ul {
+            display: flex;
+            gap: 4px;
+            width: max-content;
+            min-width: 100%;
+            justify-content: center;
+            margin: 0;
+            padding: 4px;
+            list-style: none;
+        }
+
+        .section-nav a {
+            display: flex;
+            align-items: center;
+            min-height: 44px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: var(--color-muted);
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .section-nav a:hover,
+        .section-nav a:focus-visible {
+            background: var(--color-surface);
+            color: var(--color-accent);
+        }
+
+        @media (max-width: 1200px) {
+            .top-nav { --header-side-width: 134px; }
+        }
+
+        main {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 72px 24px;
+        }
+
+        .publication-title {
+            margin: 0 auto 24px;
+            color: var(--color-heading);
+            font-size: 48px;
+            font-weight: 600;
+            line-height: 1.125;
+            text-align: center;
+        }
+
+        .publication-authors {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px 24px;
+            margin: 0 0 12px;
+            padding: 0;
+            list-style: none;
+            color: var(--color-accent);
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .publication-authors li {
+            white-space: nowrap;
+        }
+
+        .publication-authors sup,
+        .publication-affiliations sup {
+            margin-left: 2px;
+            font-size: 0.65em;
+        }
+
+        .publication-affiliations {
+            margin-bottom: 20px;
+            color: var(--color-muted);
+            font-size: 16px;
+            line-height: 1.65;
+            text-align: center;
+        }
+
+        .publication-affiliations p {
+            margin: 4px 0;
+        }
+
+        .publication-authors a,
+        .publication-affiliations a {
+            color: var(--color-accent);
+            text-decoration: none;
+        }
+
+        .publication-authors a:hover,
+        .publication-authors a:focus-visible,
+        .publication-affiliations a:hover {
+            color: var(--color-accent-hover);
+            text-decoration: underline;
+        }
+
+        .publication-links {
+            text-align: center;
+        }
+
+        .code-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            min-height: 44px;
+            padding: 10px 24px;
+            border-radius: 999px;
+            background: var(--color-accent);
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 600;
+            line-height: 1.5;
+            text-decoration: none;
+        }
+
+        .code-link:hover {
+            background: var(--color-accent-hover);
+            color: #ffffff;
+        }
+
+        .demo {
+            margin-top: 48px;
+            text-align: center;
+        }
+
+        .demo-video {
+            display: block;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            margin-top: 20px;
+            background: var(--color-surface);
+            border: 0;
+            border-radius: 12px;
+            object-fit: contain;
+        }
+
+        .section-divider {
+            margin: 56px 0 40px;
+            border: 0;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .abstract {
+            max-width: 940px;
+            margin: 0 auto;
+            padding: 64px 0;
+            background: var(--color-background);
+        }
+
+        .abstract > h2 {
+            margin: 0 0 28px;
+            text-align: center;
+        }
+
+        .localized-content[lang="ko"] {
+            word-break: keep-all;
+            overflow-wrap: anywhere;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip-path: inset(50%);
+            white-space: nowrap;
+        }
+
+        .language-switch {
+            display: inline-flex;
+            flex-shrink: 0;
+            gap: 4px;
+            padding: 4px;
+            border: 1px solid var(--color-border);
+            border-radius: 999px;
+            background: var(--color-surface);
+            color: var(--color-muted);
+            font: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .language-switch span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 52px;
+            min-height: 44px;
+            padding: 6px 12px;
+            border-radius: 999px;
+        }
+
+        .language-switch:hover {
+            border-color: var(--color-accent);
+        }
+
+        .language-switch[data-language="en"] span[lang="en"],
+        .language-switch[data-language="ko"] span[lang="ko"] {
+            color: #ffffff;
+            background: var(--color-accent);
+            box-shadow: 0 2px 6px rgb(53 109 204 / 16%);
+        }
+
+        .language-switch[data-language="en"]:hover span[lang="en"],
+        .language-switch[data-language="ko"]:hover span[lang="ko"] {
+            background: var(--color-accent-hover);
+        }
+
+        .code-link:focus-visible,
+        .language-switch:focus-visible {
+            outline: 2px solid var(--color-accent);
+            outline-offset: 3px;
+        }
+
+        .abstract-copy p {
+            margin: 0;
+            line-height: 1.85;
+        }
+
+        .abstract-copy p + p {
+            margin-top: 20px;
+        }
+
+        .content-section {
+            margin-top: 64px;
+            padding-top: 40px;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .content-section > h2 {
+            text-align: center;
+        }
+
+        .overview-intro {
+            max-width: 760px;
+            margin: 16px auto 32px;
+            color: var(--color-muted);
+            text-align: center;
+        }
+
+        .table-scroll {
+            overflow-x: auto;
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+        }
+
+        .table-scroll:focus-visible {
+            outline: 2px solid var(--color-accent);
+            outline-offset: 4px;
+        }
+
+        .comparison-table {
+            width: 100%;
+            min-width: 560px;
+            border-collapse: collapse;
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--color-border);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .comparison-table thead {
+            background: var(--color-surface);
+            color: var(--color-heading);
+        }
+
+        .comparison-table tbody th {
+            color: var(--color-accent);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .comparison-table tbody tr:last-child > * {
+            border-bottom: 0;
+        }
+
+        .comparison-note {
+            margin: 14px 0 0;
+            color: var(--color-muted);
+            font-size: 14px;
+        }
+
+        .measurement h3,
+        .evaluation-metric-definitions h3 {
+            margin: 0 0 12px;
+            color: var(--color-heading);
+            font-size: 20px;
+            line-height: 1.45;
+        }
+
+        .measurement p,
+        .evaluation-metric-definitions p {
+            overflow-wrap: anywhere;
+        }
+
+        .measurement-formula {
+            display: block;
+            margin-top: 14px;
+            padding: 18px 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            background: #f8faff;
+            color: var(--color-heading);
+            font-size: 16px;
+            text-align: center;
+            overflow-x: auto;
+        }
+
+        .measurement-formula .katex-display {
+            margin: 0;
+        }
+
+        .measurement-formula .katex {
+            font-size: 1.15em;
+        }
+
+        .measurement-flow {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 28px;
+            margin: 40px 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .measurement-flow li {
+            padding-top: 16px;
+            border-top: 2px solid var(--color-border);
+        }
+
+        .method-eyebrow {
+            display: block;
+            margin-bottom: 12px;
+            color: var(--color-accent);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+        }
+
+        .measurement-flow h3 { font-size: 18px; }
+
+        .measurement-flow p,
+        .measurement-setup-copy p,
+        .measurement-record p,
+        .metric-definition-label p,
+        .method-details p {
+            margin: 0 0 14px;
+            color: var(--color-muted);
+            font-size: 16px;
+        }
+
+        .measurement-setup,
+        .measurement-record {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            align-items: center;
+            gap: 40px;
+            margin: 40px 0;
+        }
+
+        .measurement-diagram {
+            margin: 0;
+            padding: 24px 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 14px;
+            background: #f8faff;
+        }
+
+        .measurement-diagram svg { display: block; width: 100%; height: auto; }
+        .measurement-diagram figcaption { margin: 16px 12px 0; color: var(--color-muted); font-size: 12px; text-align: center; }
+
+        .measurement-specs {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .measurement-specs dt { color: var(--color-muted); font-size: 12px; }
+        .measurement-specs dd { margin: 4px 0 0; color: var(--color-heading); font-size: 16px; font-weight: 600; }
+
+        .measurement-record {
+            align-items: start;
+            padding-top: 36px;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .measurement-record-note {
+            padding: 18px 24px;
+            border-left: 3px solid var(--color-accent);
+            background: #f8faff;
+            font-size: 14px;
+        }
+
+        .measurement-record-note p { margin: 6px 0 0; color: var(--color-muted); }
+
+        .metric-definition {
+            display: grid;
+            grid-template-columns: minmax(0, 0.8fr) minmax(0, 2fr);
+            gap: 40px;
+            padding: 36px 0;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .metric-definition-body { min-width: 0; }
+        .metric-definition-body > .measurement-formula { margin-top: 0; }
+
+        .method-details {
+            margin-top: 20px;
+            border-top: 1px solid var(--color-border);
+            font-size: 14px;
+        }
+
+        .method-details summary {
+            padding: 15px 0;
+            color: var(--color-accent);
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .method-details summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 4px; }
+        .method-details > div { padding-bottom: 12px; }
+        .method-details p { font-size: 14px; }
+        .method-details a { color: var(--color-accent); }
+
+        .measurement-notation {
+            margin: 16px 0 0;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .measurement-notation > div {
+            display: grid;
+            grid-template-columns: 150px minmax(0, 1fr);
+            gap: 16px;
+            padding: 9px 0;
+            border-bottom: 1px solid #edf1f7;
+        }
+
+        .measurement-notation dt {
+            color: var(--color-heading);
+        }
+
+        .measurement-notation dd {
+            margin: 0;
+            color: var(--color-muted);
+        }
+
+        .measurement-notation .katex {
+            font-size: 1.1em;
+        }
+
+        @media (max-width: 800px) {
+            .measurement-setup,
+            .measurement-record,
+            .metric-definition {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 24px;
+            }
+            .measurement-diagram { max-width: 520px; width: 100%; margin: 0 auto; }
+        }
+
+        @media (max-width: 600px) {
+            .measurement-flow { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+            .measurement-notation > div {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 4px;
+            }
+        }
+
+        h2 {
+            margin: 0 0 12px;
+            color: var(--color-heading);
+            font-size: 28px;
+            line-height: 1.3;
+        }
+
+        .section-title::after {
+            content: "";
+            display: block;
+            width: 44px;
+            height: 3px;
+            margin: 16px auto 0;
+            border-radius: 999px;
+            background: var(--color-accent);
+        }
+
+        a {
+            color: var(--color-primary);
+            text-underline-offset: 3px;
+        }
+
+        a:hover {
+            color: var(--color-primary-hover);
+        }
+
+        a:focus-visible {
+            outline: 2px solid var(--color-primary);
+            outline-offset: 4px;
+        }
+
+        @media (max-width: 600px) {
+            main {
+                padding: 48px 20px;
+            }
+
+            .abstract {
+                padding: 48px 0;
+            }
+
+            .publication-title {
+                font-size: 32px;
+                line-height: 1.2;
+            }
+
+            .content-section {
+                margin-top: 48px;
+                padding-top: 32px;
+            }
+
+            .top-nav {
+                --header-side-width: 106px;
+                gap: 8px;
+                padding: 10px 12px;
+            }
+
+            .language-switch span {
+                min-width: 44px;
+                padding: 6px 8px;
+            }
+
+            .lab-brand img {
+                width: 72px;
+            }
+        }
+
+        /* Full-width section backgrounds keep the content aligned to the main column. */
+        .section-band {
+            padding: 56px 0;
+            border-top: 0;
+            background: var(--color-surface);
+            box-shadow: 0 0 0 100vmax var(--color-surface);
+            clip-path: inset(0 -100vmax);
+        }
+        .section-band + .content-section { border-top: 0; }
+        .system-overview.section-band { margin-top: 0; }
+        .case-showcase > h2 { text-align: center; }
+        .section-kicker { margin: 0 0 10px; color: var(--color-accent); font-size: 12px; font-weight: 600; letter-spacing: .14em; text-align: center; }
+        .case-count { margin: 0 0 16px; color: var(--color-muted); font-size: 14px; }
+        .case-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
+        .case-card { grid-column: span 2; min-width: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-background); }
+        .case-card:last-child:nth-child(odd) { grid-column: 2 / span 2; }
+        .case-media { position: relative; background: var(--color-surface); }
+        .case-media video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; }
+        .case-copy { padding: 20px; }
+        .case-meta { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; color: var(--color-accent); font-size: 12px; font-weight: 600; letter-spacing: .04em; }
+        .case-copy h3 { margin: 0 0 8px; color: var(--color-heading); font-size: 19px; line-height: 1.4; }
+        .case-copy p { margin: 0; color: var(--color-muted); font-size: 14px; line-height: 1.7; }
+        .video-method-note { margin: 12px 0 0; color: var(--color-muted); font-size: 12px; text-align: center; }
+        .results-status { margin: 0 0 28px; padding: 16px 20px; border-left: 3px solid var(--color-accent); border-radius: 0 10px 10px 0; background: var(--color-surface); color: var(--color-muted); font-size: 14px; line-height: 1.75; }
+        .result-main { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr); gap: 24px; align-items: start; }
+        .result-highlights { margin: 0; padding: 0; list-style: none; }
+        .result-highlights li { padding: 18px 20px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-background); }
+        .result-highlights span { color: var(--color-muted); font-size: 13px; }
+        .result-highlights strong { display: block; margin: 4px 0; color: var(--color-accent); font-size: 24px; line-height: 1.3; }
+        .result-highlights p { margin: 0; color: var(--color-muted); font-size: 13px; line-height: 1.6; }
+        .evaluation-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+        .metric-panel { min-width: 0; margin: 0; padding: 24px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-background); }
+        .metric-panel h3 { margin: 0 0 6px; color: var(--color-heading); font-size: 19px; }
+        .metric-description { min-height: 48px; margin: 0 0 24px; color: var(--color-muted); font-size: 14px; line-height: 1.7; }
+        .metric-scale { display: flex; justify-content: space-between; margin: 0 56px 12px 38px; font-size: 11px; color: var(--color-muted); }
+        .metric-bars { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+        .metric-bars li { display: grid; grid-template-columns: 28px minmax(0, 1fr) 46px; gap: 10px; align-items: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+        .metric-bars .is-best > span { color: var(--color-accent); font-weight: 700; }
+        .metric-bar-track { position: relative; height: 22px; background: var(--color-surface); border-radius: 3px; overflow: hidden; }
+        .metric-bar { width: var(--bar-width); height: 100%; background: #b9ccef; border-radius: 3px; }
+        .metric-bars .is-best .metric-bar { background: var(--color-accent); }
+        .metric-iqr { position: absolute; top: 50%; left: var(--iqr-start); width: var(--iqr-width); height: 2px; margin-top: -1px; background: var(--color-heading); opacity: .6; }
+        .metric-iqr::before, .metric-iqr::after { content: ""; position: absolute; top: -4px; width: 2px; height: 10px; background: inherit; }
+        .metric-iqr::before { left: 0; }
+        .metric-iqr::after { right: 0; }
+        .metric-value { text-align: right; }
+        .metric-panel figcaption { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--color-border); color: var(--color-muted); font-size: 13px; }
+        .result-details { margin-top: 32px; }
+        .result-details > summary { font-size: 15px; }
+        .result-details > div { padding-top: 8px; }
+        .results-subtitle { margin: 40px 0 16px; color: var(--color-heading); font-size: 18px; }
+        .results-table { min-width: 860px; }
+        .results-table td { color: var(--color-muted); font-variant-numeric: tabular-nums; }
+        .results-table td strong { color: var(--color-heading); }
+        .result-iqr { white-space: nowrap; font-size: 13px; }
+        @media (max-width: 700px) {
+            .section-band { padding: 40px 0; }
+            .case-grid, .evaluation-metrics { grid-template-columns: minmax(0, 1fr); }
+            .case-card, .case-card:last-child:nth-child(odd) { grid-column: auto; }
+            .metric-panel { padding: 20px; }
+            .result-main { grid-template-columns: minmax(0, 1fr); }
+        }
+
+        .abstract + .content-section { border-top: 0; }
+        .system-overview-figure { margin: 28px 0 0; }
+        .system-flow { max-width: 960px; margin: 0 auto; }
+        .system-stage { display: flex; align-items: center; gap: 18px; padding: 24px 28px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-background); }
+        .system-stage h3, .system-search h3 { margin: 0; color: var(--color-heading); font-size: 19px; font-weight: 600; line-height: 1.4; }
+        .system-stage p, .system-loop p { margin: 6px 0 0; color: var(--color-muted); font-size: 14px; line-height: 1.6; }
+        .system-stage-number { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 38px; height: 38px; border: 1px solid var(--color-border); border-radius: 50%; color: var(--color-accent); background: var(--color-background); font-size: 13px; font-weight: 600; }
+        .system-stage-tag { color: var(--color-accent); font-size: 11px; font-weight: 600; letter-spacing: .08em; }
+        .system-patrol > .system-stage-tag, .system-search-heading > .system-stage-tag { margin-left: auto; }
+        .system-connector { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 64px; padding: 12px; color: var(--color-muted); font-size: 12px; }
+        .system-connector svg, .system-outcome-arrow svg { display: block; flex-shrink: 0; width: 24px; height: 24px; fill: none; stroke: var(--color-accent); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+        .system-search { padding: 24px 28px 18px; border: 1px solid #b9ccef; border-radius: 16px; background: #e8effc; }
+        .system-search-heading { display: flex; align-items: center; gap: 18px; margin-bottom: 24px; }
+        .system-search-intro { margin: -12px 0 22px; color: var(--color-muted); font-size: 14px; line-height: 1.6; }
+        .system-loop { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 30px; margin: 0; padding: 0; list-style: none; }
+        .system-loop-step { position: relative; display: flex; flex-direction: column; justify-content: center; min-width: 0; min-height: 104px; padding: 18px 12px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-background); text-align: center; }
+        .system-loop-step h4 { margin: 0; color: var(--color-heading); font-size: 16px; font-weight: 600; line-height: 1.4; }
+        .system-loop-step + .system-loop-step::before { content: ""; position: absolute; left: -30px; top: 50%; width: 28px; border-top: 1px solid var(--color-accent); }
+        .system-loop-step + .system-loop-step::after { content: ""; position: absolute; left: -8px; top: calc(50% - 3px); width: 6px; height: 6px; border-top: 1px solid var(--color-accent); border-right: 1px solid var(--color-accent); transform: rotate(45deg); }
+        .system-feedback svg { display: block; width: 100%; height: 42px; fill: none; stroke: var(--color-accent); stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+        .system-feedback p { margin: -4px 0 0; color: var(--color-accent); text-align: center; font-size: 12px; }
+        .system-feedback p span { margin-right: 5px; }
+        .system-outcome { display: grid; grid-template-columns: minmax(0, 1.35fr) 48px minmax(0, 1fr); align-items: stretch; }
+        .system-outcome-arrow { display: flex; align-items: center; justify-content: center; }
+        .system-evaluation { background: var(--color-background); border-color: #b9ccef; }
+        .system-evaluation .system-stage-tag { display: block; margin-bottom: 6px; }
+        @media (max-width: 700px) {
+            .system-stage { gap: 12px; padding: 20px; }
+            .system-stage h3, .system-search h3 { font-size: 17px; }
+            .system-patrol > .system-stage-tag { display: none; }
+            .system-search { padding: 20px; }
+            .system-search-heading { gap: 12px; }
+            .system-loop { grid-template-columns: minmax(0, 1fr); gap: 26px; }
+            .system-loop-step { min-height: 88px; }
+            .system-loop-step + .system-loop-step::before { left: 50%; top: -26px; width: 0; height: 24px; border-top: 0; border-left: 1px solid var(--color-accent); }
+            .system-loop-step + .system-loop-step::after { left: calc(50% - 3px); top: -8px; transform: rotate(135deg); }
+            .system-feedback svg { display: none; }
+            .system-feedback p { margin: 16px 0 0; }
+            .system-outcome { grid-template-columns: minmax(0, 1fr); }
+            .system-outcome-arrow { height: 40px; }
+            .system-outcome-arrow svg { transform: rotate(90deg); }
+            .system-evaluation { justify-content: center; text-align: center; }
+        }
+        .system-overview-figure figcaption { margin-top: 14px; color: var(--color-muted); font-size: 14px; text-align: center; }
+    </style>
+</head>
+
+<body>
+    <header class="site-header">
+        <div class="top-nav">
+            <a class="lab-brand" href="https://sites.google.com/view/icir-lab/%ED%99%88"
+               target="_blank" rel="noopener noreferrer"
+               aria-label="iCIR Lab 홈페이지 (새 탭에서 열림) / iCIR Lab website (opens in a new tab)">
+                <img src="assets/icir-lab-logo.png" alt="iCIR Lab" width="570" height="283">
+            </a>
+            <button class="menu-toggle" id="section-menu-toggle" type="button" hidden
+                    aria-controls="section-navigation" aria-expanded="false" aria-label="Open section menu">
+                <svg class="menu-open-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                <svg class="menu-close-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg>
+            </button>
+            <nav class="section-nav" id="section-navigation" aria-label="Page sections" lang="en">
+                <ul>
+                    <li><a href="#publication-title" data-label-en="Top" data-label-ko="맨 위">Top</a></li>
+                    <li><a href="#demo-title" data-label-en="Demo Video" data-label-ko="데모 영상">Demo Video</a></li>
+                    <li><a href="#cases-title-en" data-section="cases-title">Special-case videos</a></li>
+                    <li><a href="#abstract-title-en" data-section="abstract-title">Abstract</a></li>
+                    <li><a href="#system-overview-title-en" data-section="system-overview-title">System overview</a></li>
+                    <li><a href="#measurement-title-en" data-section="measurement-title">Measurement</a></li>
+                    <li><a href="#metrics-title-en" data-section="metrics-title">Evaluation Metrics</a></li>
+                    <li><a href="#evaluation-title-en" data-section="evaluation-title">Evaluation results</a></li>
+                </ul>
+            </nav>
+            <div class="top-nav-controls">
+                <button class="language-switch" id="language-toggle" type="button" data-language="en"
+                        aria-label="Current content language: English. Switch to Korean."
+                        title="한국어로 전환" aria-controls="content-en content-ko">
+                    <span lang="en" aria-hidden="true">EN</span>
+                    <span lang="ko" aria-hidden="true">한국어</span>
+                </button>
+            </div>
+        </div>
+    </header>
+    <main>
+        <header>
+            <h1 class="publication-title" id="publication-title">
+                A Benchmark for Gas Source Localization toward Rapid Leak Removal in Cleanrooms
+            </h1>
+
+            <div lang="en">
+                <ul class="publication-authors" aria-label="Project creator">
+                    <li><a href="https://github.com/gogochang"
+                           target="_blank" rel="noopener noreferrer"
+                           aria-label="Changgyu Kim on GitHub (opens in a new tab)">Changgyu Kim</a></li>
+                </ul>
+                <div class="publication-affiliations" aria-label="Affiliation">
+                    <p><a href="https://sites.google.com/view/icir-lab/%ED%99%88"
+                          target="_blank" rel="noopener noreferrer"
+                          aria-label="iCIR Lab website (opens in a new tab)">iCIR Lab</a> · Department of Mechatronics Engineering</p>
+                    <p>Chungnam National University</p>
+                </div>
+            </div>
+
+            <div class="publication-links">
+                <a class="code-link" href="https://github.com/iCIRLab/icir_cleanroom"
+                   target="_blank" rel="noopener noreferrer"
+                   aria-label="View project code on GitHub (opens in a new tab)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                         stroke-linejoin="round" aria-hidden="true" focusable="false">
+                        <path d="m7 7-5 5 5 5M17 7l5 5-5 5M14 4l-4 16"/>
+                    </svg>
+                    <span>Code</span>
+                </a>
+            </div>
+        </header>
+        <section class="demo" aria-labelledby="demo-title">
+            <h2 class="section-title" id="demo-title" data-localized-copy data-label-en="Demo Video" data-label-ko="데모 영상">Demo Video</h2>
+            <p class="overview-intro" data-localized-copy
+               data-label-en="A complete trial in an open area of the cleanroom with moderate source strength and spread, from LRS patrol through HRS exploration to the final source-position decision."
+               data-label-ko="클린룸 내 개방된 구역에 보통 세기와 분포 폭의 가스원을 두고, LRS 순찰부터 HRS 탐색과 최종 가스원 위치 결정까지 전체 흐름을 보여줍니다.">A complete trial in an open area of the cleanroom with moderate source strength and spread, from LRS patrol through HRS exploration to the final source-position decision.</p>
+            <video class="demo-video" controls autoplay loop muted playsinline preload="metadata"
+                   aria-label="Cleanroom Gas Source Localization Demo">
+                <source src="media/demo_cleanroom.mp4" type="video/mp4">
+                이 브라우저는 동영상 재생을 지원하지 않습니다.
+                <a href="media/demo_cleanroom.mp4">MP4 영상 다운로드</a>
+            </video>
+            <p class="video-method-note" data-localized-copy data-label-en="Demonstration method: M6 · 4× speed" data-label-ko="시연 방법: M6 · 4× speed">Demonstration method: M6 · 4× speed</p>
+        </section>
+        <hr class="section-divider">
+        <div id="project-content">
+            <span class="sr-only" id="language-status" role="status" aria-live="polite"></span>
+            <!-- Add future sections to both language containers below. -->
+            <div class="localized-content" id="content-en" lang="en">
+                <section class="case-showcase section-band" aria-labelledby="cases-title-en">
+        <p class="section-kicker">SAME ENVIRONMENT · DIFFERENT CASES</p>
+        <h2 class="section-title" id="cases-title-en">Special-case videos</h2>
+        <p class="overview-intro">Eight search conditions in the cleanroom: obstacles, initial LRS signal strength, source distance at the HRS transition, and sources inside inaccessible equipment or beyond a wall. Each clip follows exploration through the final source-position decision.</p>
+        <p class="case-count">8 cases · 4× speed · Looping playback</p>
+        <div class="case-grid" id="cases-grid-en">
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 01: Open-area search"><source src="media/cases/case1.mp4" type="video/mp4"><a href="media/cases/case1.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 01</span><span>4× speed</span></div><h3>Open-area search</h3><p>HRS exploration in an open part of the cleanroom, from the first target to the final source-position decision.</p></div>
+            </article>
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 02: Search near an obstacle"><source src="media/cases/case2.mp4" type="video/mp4"><a href="media/cases/case2.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 02</span><span>4× speed</span></div><h3>Search near an obstacle</h3><p>HRS exploration around equipment that restricts access, showing detours and the final source-position decision.</p></div>
+            </article>
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 03: Search after a weak LRS signal"><source src="media/cases/case3.mp4" type="video/mp4"><a href="media/cases/case3.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 03</span><span>4× speed</span></div><h3>Search after a weak LRS signal</h3><p>Low but detectable LRS concentration readings lead into HRS exploration and the final source-position decision.</p></div>
+            </article>
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 04: Search after a strong LRS signal"><source src="media/cases/case4.mp4" type="video/mp4"><a href="media/cases/case4.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 04</span><span>4× speed</span></div><h3>Search after a strong LRS signal</h3><p>High LRS concentration readings lead into HRS exploration and the final source-position decision.</p></div>
+            </article>
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 05: Search for a nearby source"><source src="media/cases/case5.mp4" type="video/mp4"><a href="media/cases/case5.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 05</span><span>4× speed</span></div><h3>Search for a nearby source</h3><p>With moderate LRS readings, HRS begins a short path distance from the source and continues to the final position decision.</p></div>
+            </article>
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 06: Search for a distant source"><source src="media/cases/case6.mp4" type="video/mp4"><a href="media/cases/case6.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 06</span><span>4× speed</span></div><h3>Search for a distant source</h3><p>With moderate LRS readings, HRS begins a long path distance from the source and continues to the final position decision.</p></div>
+            </article>
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 07: Source inside inaccessible equipment"><source src="media/cases/case7.mp4" type="video/mp4"><a href="media/cases/case7.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 07</span><span>4× speed</span></div><h3>Source inside inaccessible equipment</h3><p>The gas source is inside equipment that the robot cannot enter. The clip shows the search under this access constraint.</p></div>
+            </article>
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 08: Source beyond a wall"><source src="media/cases/case8.mp4" type="video/mp4"><a href="media/cases/case8.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 08</span><span>4× speed</span></div><h3>Source beyond a wall</h3><p>The gas source is on the other side of a wall. The clip shows exploration with the wall separating the robot from the source.</p></div>
+            </article>
+        </div>
+        <p class="video-method-note">Demonstration method: M6 · All eight cases</p>
+    </section>
+                <section class="abstract" aria-labelledby="abstract-title-en">
+                    <h2 class="section-title" id="abstract-title-en">Abstract</h2>
+                    <div class="abstract-copy">
+                        <p>
+                            When a hazardous gas leak occurs in a structured indoor environment such as a
+                            cleanroom, it is important to reach and remove the gas source rapidly while
+                            minimizing the need for personnel to enter the affected area. Cleanrooms with
+                            stringent cleanliness requirements, such as semiconductor front-end fabrication
+                            facilities, use vertical unidirectional airflow from the ceiling to a perforated
+                            floor. In these environments, the horizontal airflow component is negligible,
+                            leaving no wind-direction cues that indicate the direction of the gas source.
+                        </p>
+                        <p>
+                            Most research on mobile robot-based gas source localization (GSL) relies on
+                            plumes generated by horizontal airflow and wind-direction measurements as key
+                            cues, while established benchmarks focus on warehouses, residential environments,
+                            and wind tunnels. To the best of our knowledge, no GSL evaluation has been reported
+                            for the vertical unidirectional airflow conditions found in cleanrooms. Moreover,
+                            existing studies typically assume that the search begins without prior information
+                            and focus on localization accuracy or concentration mapping. Consequently, how
+                            quickly a robot can reach a gas source using limited concentration measurements
+                            collected during routine patrols remains insufficiently explored.
+                        </p>
+                        <p>
+                            This paper proposes a benchmark for a single gas source that evaluates the process
+                            from anomaly detection during a robot's patrol to the final source-position decision in the
+                            absence of wind-direction cues. In regions away from obstacles, gas concentration
+                            on the horizontal plane at sensor height is modeled as an isotropic Gaussian,
+                            since there is no horizontal airflow to skew the distribution. The robot measures
+                            concentrations at predefined locations during a low-resolution survey (LRS).
+                            Upon detecting an anomalous concentration, it switches to a high-resolution
+                            search (HRS), using a Gaussian Markov random field (GMRF) to estimate the
+                            concentration field and locate the source. Evaluation measures the time from
+                            the transition to HRS until the final source-position decision, together with
+                            the source localization error. Methods are compared by a Score that averages,
+                            over trials, the ratio of ideal travel time to HRS decision time, discounted by
+                            the localization error expressed in GMRF cells. HRS decision time, localization
+                            error, and the time to reach the final estimated position are reported as detailed metrics.
+                        </p>
+                        <p>
+                            We randomly generated gas source positions, strengths, and distribution widths
+                            in an indoor environment with obstacles simulated using ROS 2, Gazebo, and Nav2.
+                            We compared six methods combining three search starting-point selection rules
+                            (the patrol location with the highest measured concentration, the
+                            concentration-weighted centroid of patrol locations, and the cell with the
+                            highest estimated mean) with two subsequent search strategies (selection of
+                            the cell with the highest estimated mean and spiral search). All methods were
+                            evaluated on the same 100 gas sources generated with fixed random seeds, and the
+                            91 sources on which all six methods finished normally were used for comparison.
+                        </p>
+                        <p>
+                            Combining the concentration-weighted centroid start with spiral search achieved
+                            the highest Score (0.311), followed by the highest-concentration patrol start with
+                            spiral search (0.277). For every starting-point rule, spiral search reached the
+                            source-position decision faster than selecting the cell with the highest estimated
+                            mean. Mean localization error was below 0.07 m for all six methods.
+                        </p>
+                    </div>
+                </section>
+                <section class="content-section system-overview section-band" aria-labelledby="system-overview-title-en">
+                    <h2 class="section-title" id="system-overview-title-en">System overview</h2>
+                    <p class="overview-intro">One benchmark trial: from a patrol pass to a final source-position decision.</p>
+                    <figure class="system-overview-figure" aria-describedby="system-flow-caption-en">
+                        <div class="system-flow">
+                            <div class="system-stage system-patrol">
+                                <span class="system-stage-number" aria-hidden="true">01</span>
+                                <div><h3>LRS · One patrol pass</h3><p>Measure concentration and update GMRF at each patrol stop</p></div>
+                                <span class="system-stage-tag">PATROL</span>
+                            </div>
+                            <div class="system-connector"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v17m-5-5 5 5 5-5"/></svg><span>Anomaly detected · complete the patrol</span></div>
+                            <div class="system-search" role="group" aria-labelledby="system-hrs-en">
+                                <div class="system-search-heading"><span class="system-stage-number" aria-hidden="true">02</span><h3 id="system-hrs-en">HRS · Focused search</h3><span class="system-stage-tag">ITERATE</span></div>
+                                <p class="system-search-intro">Continue updating the GMRF built during LRS.</p>
+                                <ol class="system-loop">                            <li class="system-loop-step">
+                                <h4>GMRF</h4><p>Update the concentration estimate</p>
+                            </li>
+                            <li class="system-loop-step">
+                                <h4>Select next position</h4><p>Apply the search strategy</p>
+                            </li>
+                            <li class="system-loop-step">
+                                <h4>Move & measure</h4><p>Navigate, dwell and sample</p>
+                            </li>
+                                </ol>
+                                <div class="system-feedback">
+                                    <svg viewBox="0 0 900 42" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M750 1v25H150V1m-5 6 5-6 5 6"/></svg>
+                                    <p><span aria-hidden="true">↺</span> Feed new observations back into GMRF</p>
+                                </div>
+                            </div>
+                            <div class="system-connector"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v17m-5-5 5 5 5-5"/></svg><span>Search termination condition met</span></div>
+                            <div class="system-outcome">
+                                <div class="system-stage system-decision"><span class="system-stage-number" aria-hidden="true">03</span><div><h3>Decide source position</h3><p>Record the estimate and decision time</p></div></div>
+                                <div class="system-outcome-arrow"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12h17m-5-5 5 5-5 5"/></svg></div>
+                                <div class="system-stage system-evaluation"><div><span class="system-stage-tag">TRIAL COMPLETE</span><h3>Evaluate</h3><p>Time · Error · Score</p></div></div>
+                            </div>
+                        </div>
+                        <figcaption id="system-flow-caption-en">The operational system patrols continuously. This benchmark evaluates one trial at a time; the loop shown here is the repeated measurement and estimation within HRS.</figcaption>
+                    </figure>
+                </section>
+                <section class="content-section measurement" aria-labelledby="measurement-title-en">
+                <p class="section-kicker">OBSERVATION PROTOCOL</p><h2 class="section-title" id="measurement-title-en">Measurement</h2>
+                <p class="overview-intro">Where concentration observations come from, how they are collected, and what is recorded.</p>
+                <ol class="measurement-flow"><li><span class="method-eyebrow">01</span><h3>Define the position</h3><p>Use the robot center in the map frame as the horizontal sampling reference.</p></li><li><span class="method-eyebrow">02</span><h3>Arrive and sample</h3><p>Collect concentration samples during the configured dwell interval at each target.</p></li><li><span class="method-eyebrow">03</span><h3>Average and record</h3><p>Store the sample mean with the visit position, phase, time and sample count.</p></li></ol>
+                <div class="measurement-setup"><figure class="measurement-diagram"><svg viewBox="0 0 480 300" role="img" aria-label="Conceptual top view distinguishing the inlet from the centered sampling reference">
+    <rect x="158" y="50" width="164" height="212" rx="32" fill="#fff" stroke="#c5d2e6" stroke-width="2"/>
+    <rect x="145" y="111" width="13" height="88" rx="5" fill="#a7b8d1"/><rect x="322" y="111" width="13" height="88" rx="5" fill="#a7b8d1"/>
+    <path d="M240 232V72M180 156H300" stroke="#d6dfed" stroke-dasharray="4 6"/>
+    <path d="m232 29 8-10 8 10" fill="none" stroke="#6f819b" stroke-width="2"/>
+    <text x="270" y="29" fill="#6f819b" font-size="12">FRONT</text>
+    <rect x="173" y="72" width="20" height="13" rx="3" fill="#8c9cb1"/><path d="M183 78H119L98 62" fill="none" stroke="#8c9cb1"/>
+    <text x="18" y="53" fill="#5b6472" font-size="13">Physical inlet</text>
+    <circle cx="240" cy="156" r="22" fill="#e8effc"/><circle cx="240" cy="156" r="7" fill="#356dcc"/>
+    <path d="M248 156H350L367 137" fill="none" stroke="#356dcc"/>
+    <text x="345" y="116" fill="#356dcc" font-size="13">Sampling reference</text>
+    <text x="240" y="287" text-anchor="middle" fill="#356dcc" font-size="14">Robot center (x, y)</text>
+    </svg><figcaption>Conceptual top view; dimensions and mounting positions are not to scale.</figcaption></figure><div class="measurement-setup-copy"><h3>A centered sampling reference</h3>
+                <p class="">The physical inlet is offset from the robot center. For this experiment, the horizontal sampling and recording reference is placed at the robot center (base_link). The body’s inlet offset is not applied to the sampled coordinates.</p>
+                <p class="">Concentration is sampled from a static 2D Gaussian field at the virtual sensor’s (x, y). Its value is relative and bounded between 0 and 1; the computation does not use height z.</p>
+                <dl class="measurement-specs"><div><dt>Position reference</dt><dd>Robot center · map frame</dd></div><div><dt>Nominal update rate</dt><dd>20 Hz</dd></div><div><dt>LRS dwell</dt><dd>1 s per visit</dd></div><div><dt>HRS dwell</dt><dd>2 s per visit</dd></div></dl>
+                <p class="comparison-note">These are the current model/configuration defaults, not fixed requirements. Use the actual settings and sample counts for each experiment.</p>
+                </div></div>
+                <div class="measurement-record"><div><span class="method-eyebrow">ONE VISIT → ONE OBSERVATION</span><h3>Averaging the samples</h3>
+                <p class="">The arithmetic mean of the samples collected during the dwell interval becomes the concentration observation used to update the GMRF.</p>
+                <span class="measurement-formula" data-math="\bar c_j=\frac{1}{n_j}\sum_{k=1}^{n_j}c_{j,k}">c̄_j = (1 / n_j) Σ c_j,k</span>
+                </div><div><dl class="measurement-notation" aria-label="Notation and units"><div><dt><span data-math-display="inline" data-math="j">j</span></dt><dd>Measurement visit index.</dd></div><div><dt><span data-math-display="inline" data-math="c_{j,k}">c_j,k</span></dt><dd>The k-th concentration sample received during visit j (relative value, 0–1).</dd></div><div><dt><span data-math-display="inline" data-math="n_j">n_j</span></dt><dd>Actual number of samples received during that visit.</dd></div><div><dt><span data-math-display="inline" data-math="\bar c_j">c̄_j</span></dt><dd>Mean concentration stored as one observation.</dd></div></dl></div></div>
+                <div class="measurement-record-note"><strong>Recorded per visit</strong><p class="">Position at the start of sampling · mean concentration · actual sample count · LRS/HRS phase · measurement event time. The recorded position is mapped to a GMRF cell for the field update.</p></div>
+                </section>
+                <section class="content-section evaluation-metric-definitions" aria-labelledby="metrics-title-en">
+                <p class="section-kicker">FROM OBSERVATIONS TO PERFORMANCE</p><h2 class="section-title" id="metrics-title-en">Evaluation Metrics</h2>
+                <p class="overview-intro">Compare decision time and localization error together. Use an ideal travel-time reference to express the decision-time ratio.</p>
+                <article class="metric-definition" aria-labelledby="metric-en-01"><div class="metric-definition-label"><span class="method-eyebrow">01 / TIME · s</span><h3 id="metric-en-01">Decision time</h3><p>How quickly does the robot decide where the source is? Lower is better, alongside error.</p></div><div class="metric-definition-body"><span class="measurement-formula" data-math="T_{\mathrm{HRS}}=t_{\mathrm{decide}}-t_{\mathrm{switch}}">T_HRS = t_decide − t_switch</span><dl class="measurement-notation" aria-label="Notation and units"><div><dt><span data-math-display="inline" data-math="T_{\mathrm{HRS}}">T_HRS</span></dt><dd>HRS decision duration (s).</dd></div><div><dt><span data-math-display="inline" data-math="t_{\mathrm{switch}}">t_switch</span></dt><dd>Simulation time when the robot switches to HRS (s).</dd></div><div><dt><span data-math-display="inline" data-math="t_{\mathrm{decide}}">t_decide</span></dt><dd>Simulation time when the robot commits to the final source coordinates (s).</dd></div></dl><p class="comparison-note">All methods use the same LRS procedure. The primary time comparison starts at the HRS transition and ends at the source-position decision.</p><details class="method-details"><summary>LRS and total-time definitions</summary><div><span class="measurement-formula" data-math="\begin{aligned}T_{\mathrm{LRS}}&amp;=t_{\mathrm{switch}}-t_{\mathrm{start}}\\T_{\mathrm{total}}&amp;=T_{\mathrm{LRS}}+T_{\mathrm{HRS}}\end{aligned}">T_LRS = t_switch − t_start; T_total = T_LRS + T_HRS</span><dl class="measurement-notation" aria-label="Notation and units"><div><dt><span data-math-display="inline" data-math="t_{\mathrm{start}}">t_start</span></dt><dd>Patrol start time (simulation seconds).</dd></div><div><dt><span data-math-display="inline" data-math="T_{\mathrm{LRS}}">T_LRS</span></dt><dd>Patrol-start to HRS-transition interval, including any transition gap (s).</dd></div><div><dt><span data-math-display="inline" data-math="T_{\mathrm{total}}">T_total</span></dt><dd>Patrol-start to final-decision duration (s); excludes subsequent approach.</dd></div></dl></div></details></div></article>
+                <article class="metric-definition" aria-labelledby="metric-en-02"><div class="metric-definition-label"><span class="method-eyebrow">02 / ACCURACY · m</span><h3 id="metric-en-02">Localization error</h3><p>How close is the final estimated source position to the true source? Lower is better.</p></div><div class="metric-definition-body"><span class="measurement-formula" data-math="E=\|\hat{\mathbf p}-\mathbf p_{\mathrm{src}}\|_2=\sqrt{(\hat x-x_{\mathrm{src}})^2+(\hat y-y_{\mathrm{src}})^2}">E = ‖p̂ − p_src‖₂ = √[(x̂ − x_src)² + (ŷ − y_src)²]</span><dl class="measurement-notation" aria-label="Notation and units"><div><dt><span data-math-display="inline" data-math="E">E</span></dt><dd>Straight-line localization error (m).</dd></div><div><dt><span data-math-display="inline" data-math="\hat{\mathbf p}=(\hat x,\hat y)">p̂ = (x̂, ŷ)</span></dt><dd>Final estimated source coordinates in the map frame (m).</dd></div><div><dt><span data-math-display="inline" data-math="\mathbf p_{\mathrm{src}}">p_src</span></dt><dd>True source coordinates (x_src, y_src), used as ground truth for evaluation (m).</dd></div><div><dt><span data-math-display="inline" data-math="\|\cdot\|_2">‖·‖₂</span></dt><dd>Euclidean norm: straight-line distance between the two positions.</dd></div></dl><p class="comparison-note">If the true source lies in a non-navigable area (inside equipment, walls or safety margins), the robot cannot reach it, so the nearest reachable point replaces <span data-math-display="inline" data-math="\mathbf p_{\mathrm{src}}">p_src</span> as the reference.</p><details class="method-details"><summary>How the final estimate is selected</summary><div><span class="measurement-formula" data-math="j^*=\underset{j\in\mathcal{M}_{\mathrm{HRS}}}{\operatorname{arg\,max}}\bar c_j,\qquad \hat{\mathbf p}=q(\mathbf p_{j^*})">j* = arg max c̄_j over HRS visits; p̂ = q(p_j*)</span><dl class="measurement-notation" aria-label="Notation and units"><div><dt><span data-math-display="inline" data-math="\mathcal{M}_{\mathrm{HRS}}">M_HRS</span></dt><dd>Indices of valid HRS measurement visits.</dd></div><div><dt><span data-math-display="inline" data-math="j^*,\;\bar c_j">j*, c̄_j</span></dt><dd>Visit with the highest mean concentration, and the mean defined in Measurement.</dd></div><div><dt><span data-math-display="inline" data-math="\mathbf p_j,\;q(\cdot)">p_j, q(·)</span></dt><dd>Recorded visit position (m); q maps it to its GMRF cell center.</dd></div></dl><p class="comparison-note">The current branch freezes the cell associated with the highest recorded HRS mean concentration. Equal means retain the earlier record. GMRF estimates support exploration; the final logged position follows this measured-maximum rule.</p></div></details></div></article>
+                <article class="metric-definition" aria-labelledby="metric-en-03"><div class="metric-definition-label"><span class="method-eyebrow">03 / REFERENCE RATIO</span><h3 id="metric-en-03">Decision-time ratio</h3><p>How fast is the decision relative to ideal travel time? Compare with position error.</p></div><div class="metric-definition-body"><span class="measurement-formula" data-math="\eta=\frac{T^*}{T_{\mathrm{HRS}}},\qquad T^*=\frac{L^*}{v_{\max}}">η = T* / T_HRS; T* = L* / v_max</span><dl class="measurement-notation" aria-label="Notation and units"><div><dt><span data-math-display="inline" data-math="\eta">η</span></dt><dd>Dimensionless ideal-travel-time / decision-time ratio.</dd></div><div><dt><span data-math-display="inline" data-math="T^*">T*</span></dt><dd>Ideal time to traverse the reference shortest path at the configured maximum speed (s).</dd></div><div><dt><span data-math-display="inline" data-math="L^*">L*</span></dt><dd>Shortest feasible path length from the robot’s HRS-transition position to the true source (m).</dd></div><div><dt><span data-math-display="inline" data-math="v_{\max}">v_max</span></dt><dd>Maximum speed configured for the robot in the experiment (m/s). Use that experiment’s setting.</dd></div><div><dt><span data-math-display="inline" data-math="T_{\mathrm{HRS}}">T_HRS</span></dt><dd>Decision duration defined above (s); positive for this ratio.</dd></div></dl><p class="comparison-note">T* is an evaluation reference. The ratio may exceed 1 when the robot decides the source location before an ideal traversal would finish. Interpret it together with localization error.</p><details class="method-details"><summary>Reference-path conditions</summary><div><p class="">Compute L* with the same map and navigation constraints across methods. T* omits acceleration, turning and stops. If the true source is unreachable, define a reachable reference endpoint separately before computing the ratio.</p></div></details></div></article>
+                <article class="metric-definition" aria-labelledby="metric-en-04">
+                    <div class="metric-definition-label">
+                        <span class="method-eyebrow">04 / AGGREGATE SCORE</span>
+                        <h3 id="metric-en-04">Score</h3>
+                        <p>Average the trial-wise time ratios, each discounted by that trial’s localization error, to compare methods on the same trial set. Higher is better.</p>
+                    </div>
+                    <div class="metric-definition-body">
+                        <span class="measurement-formula" data-math="\mathrm{Score}=\frac{1}{N}\sum_{i=1}^{N}\frac{\eta_i}{1+E_i/d}=\frac{1}{N}\sum_{i=1}^{N}\frac{T_i^*}{T_{\mathrm{HRS},i}}\cdot\frac{d}{d+E_i}">Score = (1/N) Σ η_i / (1 + E_i/d) = (1/N) Σ (T*_i / T_HRS,i) · d / (d + E_i)</span>
+                        <dl class="measurement-notation" aria-label="Notation and units">
+                            <div><dt><span data-math-display="inline" data-math="N">N</span></dt><dd>Number of trials included in the comparison for each method. Use the same trial set across methods.</dd></div>
+                            <div><dt><span data-math-display="inline" data-math="i">i</span></dt><dd>Trial index, from 1 to N.</dd></div>
+                            <div><dt><span data-math-display="inline" data-math="\eta_i">η_i</span></dt><dd>Time ratio of trial i. Each trial is weighted equally.</dd></div>
+                            <div><dt><span data-math-display="inline" data-math="T_i^*">T*_i</span></dt><dd>Ideal reference travel time for trial i (s).</dd></div>
+                            <div><dt><span data-math-display="inline" data-math="T_{\mathrm{HRS},i}">T_HRS,i</span></dt><dd>HRS decision duration for trial i (s).</dd></div>
+                            <div><dt><span data-math-display="inline" data-math="E_i">E_i</span></dt><dd>Localization error of trial i, as defined in 02 (m).</dd></div>
+                            <div><dt><span data-math-display="inline" data-math="d">d</span></dt><dd>GMRF cell size, 0.5 m. Final estimates are cell centers, so this is the resolution of the estimate.</dd></div>
+                        </dl>
+                        <p class="comparison-note"><span data-math-display="inline" data-math="E_i/d">E_i/d</span> is the error in GMRF cells: zero error (<span data-math-display="inline" data-math="E_i=0">E_i = 0</span>) keeps <span data-math-display="inline" data-math="\eta_i">η_i</span>, a one-cell error halves it, and a two-cell error leaves one third. No success threshold is applied. Per-trial values are averaged, rather than dividing the average reference time by the average decision time.</p>
+                    </div>
+                </article>
+                <details class="method-details"><summary>Supplementary measure: time to estimated source</summary><div><span class="measurement-formula" data-math="T_{\mathrm{arrival}}=t_{\mathrm{arrival}}-t_{\mathrm{switch}}">T_arrival = t_arrival − t_switch</span><dl class="measurement-notation" aria-label="Notation and units"><div><dt><span data-math-display="inline" data-math="t_{\mathrm{arrival}}">t_arrival</span></dt><dd>Robot’s arrival time at the final estimated source position under the stated navigation criterion (simulation s).</dd></div><div><dt><span data-math-display="inline" data-math="t_{\mathrm{switch}}">t_switch</span></dt><dd>HRS transition time (simulation s).</dd></div><div><dt><span data-math-display="inline" data-math="T_{\mathrm{arrival}}">T_arrival</span></dt><dd>Elapsed time from HRS transition through decision and approach to arrival (s).</dd></div></dl><p class="">This supplementary measure evaluates physical approach. Report it with localization error; arrival at an estimated position does not establish arrival at the true source.</p></div></details>
+                <p class="comparison-note">The next section compares M1–M6 by Score on 91 shared seeds, with localization error and decision time in the details. Decision time is measured to the decision event, separately from arrival.</p>
+                </section>
+                <section class="content-section evaluation-preview section-band" aria-labelledby="evaluation-title-en">
+        <p class="section-kicker">BENCHMARK RESULTS</p><h2 class="section-title" id="evaluation-title-en">Evaluation results</h2><p class="overview-intro">Comparing how quickly and accurately M1–M6 found the gas source, using Score.</p>
+        <p class="results-status"><strong>91 shared seeds · 546 runs</strong> · Only seeds on which all six methods finished normally are included; each method ran independently under the same source conditions.</p>
+        <div class="result-main">
+            <ul class="result-highlights"><li><span>Top Score</span><strong>M6</strong><p>Score 0.311</p></li></ul>
+            <figure class="metric-panel"><h3>Score</h3><p class="metric-description">A single number for how quickly and accurately the gas source was found. Finding it faster and with a smaller error raises the score.</p><div class="metric-scale" aria-hidden="true"><span>0</span><span>0.1</span><span>0.2</span><span>0.3</span><span>0.4</span></div><ol class="metric-bars" aria-label="Score"><li class="is-best"><span>M6</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 77.75%"></div></div><span class="metric-value">0.311</span></li><li><span>M2</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 69.17%"></div></div><span class="metric-value">0.277</span></li><li><span>M4</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 68.29%"></div></div><span class="metric-value">0.273</span></li><li><span>M5</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 66.86%"></div></div><span class="metric-value">0.267</span></li><li><span>M1</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 60.90%"></div></div><span class="metric-value">0.244</span></li><li><span>M3</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 59.66%"></div></div><span class="metric-value">0.239</span></li></ol><figcaption>Mean · higher is better · sorted by Score</figcaption></figure>
+        </div>
+        <p class="comparison-note"><span data-math-display="inline" data-math="T^*">T*</span> is a reference value computed from a reconstructed shortest path from the first logged HRS plan position (<span data-math-display="inline" data-math="v_{\max}">v_max</span> = 0.18 m/s).</p>
+        <details class="method-details result-details">
+            <summary>Show detailed results by method</summary>
+            <div>
+                <div class="evaluation-metrics"><figure class="metric-panel"><h3>Source localization error</h3><p class="metric-description">Mean distance between the estimated position and the source (reachable reference).</p><div class="metric-scale" aria-hidden="true"><span>0</span><span>0.02</span><span>0.04</span><span>0.06</span><span>0.08 m</span></div><ol class="metric-bars" aria-label="Source localization error"><li><span>M6</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 70.25%"></div></div><span class="metric-value">0.056</span></li><li class="is-best"><span>M2</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 27.50%"></div></div><span class="metric-value">0.022</span></li><li><span>M4</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 48.12%"></div></div><span class="metric-value">0.038</span></li><li><span>M5</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 80.00%"></div></div><span class="metric-value">0.064</span></li><li><span>M1</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 29.12%"></div></div><span class="metric-value">0.023</span></li><li><span>M3</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 63.38%"></div></div><span class="metric-value">0.051</span></li></ol><figcaption>Mean · meters (m) · lower is better · sorted by Score</figcaption></figure><figure class="metric-panel"><h3>Search decision time</h3><p class="metric-description">Elapsed simulation time from the transition to HRS to the final source-position decision.</p><div class="metric-scale" aria-hidden="true"><span>0</span><span>100</span><span>200</span><span>300</span><span>400 s</span></div><ol class="metric-bars" aria-label="Search decision time"><li class="is-best"><span>M6</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 49.95%"></div><div class="metric-iqr" style="--iqr-start: 40.61%; --iqr-width: 22.11%"></div></div><span class="metric-value">199.8</span></li><li><span>M2</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 62.02%"></div><div class="metric-iqr" style="--iqr-start: 53.02%; --iqr-width: 16.55%"></div></div><span class="metric-value">248.1</span></li><li><span>M4</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 61.42%"></div><div class="metric-iqr" style="--iqr-start: 51.14%; --iqr-width: 19.14%"></div></div><span class="metric-value">245.7</span></li><li><span>M5</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 56.25%"></div><div class="metric-iqr" style="--iqr-start: 45.35%; --iqr-width: 26.66%"></div></div><span class="metric-value">225.0</span></li><li><span>M1</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 67.42%"></div><div class="metric-iqr" style="--iqr-start: 59.08%; --iqr-width: 19.75%"></div></div><span class="metric-value">269.7</span></li><li><span>M3</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 67.25%"></div><div class="metric-iqr" style="--iqr-start: 58.84%; --iqr-width: 20.93%"></div></div><span class="metric-value">269.0</span></li></ol><figcaption>Bar: median · Line: Q1–Q3 · seconds (s) · lower is better</figcaption></figure></div>
+                <h3 class="results-subtitle" id="results-summary-en">Summary by method</h3>
+                <div class="table-scroll" role="region" tabindex="0" aria-label="Results by method">
+                    <table class="comparison-table results-table" aria-labelledby="results-summary-en" aria-describedby="results-note-en">
+                        <thead><tr><th scope="col">Method</th><th scope="col">Start rule</th><th scope="col">Search</th><th scope="col">Score</th><th scope="col">Decision time (s)<br>Median [Q1–Q3]</th><th scope="col">Decision time (s)<br>Mean ± SD</th><th scope="col">Mean error (m)</th><th scope="col">0 m error<br>rate</th></tr></thead>
+                        <tbody><tr><th scope="row">M6</th><td>Weighted centroid</td><td>Spiral</td><td><strong>0.311</strong></td><td><strong>199.8</strong> <span class="result-iqr">[162.4–250.9]</span></td><td><strong>209.9</strong> ± 62.3</td><td>0.056</td><td>90.1%</td></tr><tr><th scope="row">M2</th><td>Patrol max</td><td>Spiral</td><td>0.277</td><td>248.1 <span class="result-iqr">[212.1–278.3]</span></td><td>243.0 ± 58.3</td><td><strong>0.022</strong></td><td>95.6%</td></tr><tr><th scope="row">M4</th><td>Estimated max</td><td>Spiral</td><td>0.273</td><td>245.7 <span class="result-iqr">[204.6–281.1]</span></td><td>241.2 ± 59.9</td><td>0.038</td><td>92.3%</td></tr><tr><th scope="row">M5</th><td>Weighted centroid</td><td>Estimated-max cell</td><td>0.267</td><td>225.0 <span class="result-iqr">[181.4–288.1]</span></td><td>242.0 ± 83.5</td><td>0.064</td><td>89.0%</td></tr><tr><th scope="row">M1</th><td>Patrol max</td><td>Estimated-max cell</td><td>0.244</td><td>269.7 <span class="result-iqr">[236.3–315.3]</span></td><td>279.9 ± 66.7</td><td>0.023</td><td><strong>96.7%</strong></td></tr><tr><th scope="row">M3</th><td>Estimated max</td><td>Estimated-max cell</td><td>0.239</td><td>269.0 <span class="result-iqr">[235.3–319.1]</span></td><td>277.1 ± 61.1</td><td>0.051</td><td>93.4%</td></tr></tbody>
+                    </table>
+                </div>
+                <p class="comparison-note" id="results-note-en">Sorted by Score; bold values are the best in each column.</p>
+                <h3 class="results-subtitle">Data and selection criteria</h3>
+                <p>Cohort: 91 seeds on which M1–M6 all finished with classification = normal. Excluded seeds (9): 103, 107, 114, 124, 138, 140, 145, 175, 182.</p><p>Supplementary: median time from the HRS transition to arrival at the estimated position is 207.8–280.2 s. LRS patrol time is excluded from all time metrics.</p>
+                <p><a href="assets/results/method-summary-20261026.csv" download>Download per-method summary (CSV)</a></p>
+            </div>
+        </details>
+    </section>
+            </div>
+            <div class="localized-content" id="content-ko" lang="ko" hidden>
+                <section class="case-showcase section-band" aria-labelledby="cases-title-ko">
+        <p class="section-kicker">SAME ENVIRONMENT · DIFFERENT CASES</p>
+        <h2 class="section-title" id="cases-title-ko">특수 케이스별 영상</h2>
+        <p class="overview-intro">클린룸의 여덟 가지 탐색 조건을 살펴봅니다. 장애물, LRS 초기 신호, HRS 시작 위치와 가스원 사이의 거리, 접근 불가능한 설비 내부와 벽 너머의 가스원 등 다양한 조건에서 탐색 과정을 보여줍니다.</p>
+        <p class="case-count">8개 케이스 · 4배속 · 자동 반복 재생</p>
+        <div class="case-grid" id="cases-grid-ko">
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 01: 개방된 구역에서 탐색"><source src="media/cases/case1.mp4" type="video/mp4"><a href="media/cases/case1.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 01</span><span>4배속</span></div><h3>개방된 구역에서 탐색</h3><p>장애물 영향이 적은 클린룸 구역에서 HRS의 첫 목표 선택부터 최종 가스원 위치 결정까지 보여줍니다.</p></div>
+            </article>
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 02: 장애물 근처에서 탐색"><source src="media/cases/case2.mp4" type="video/mp4"><a href="media/cases/case2.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 02</span><span>4배속</span></div><h3>장애물 근처에서 탐색</h3><p>설비로 접근 방향이 제한되는 상황에서 HRS의 우회 경로와 최종 가스원 위치 결정 과정을 보여줍니다.</p></div>
+            </article>
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 03: 약한 LRS 신호에서 탐색"><source src="media/cases/case3.mp4" type="video/mp4"><a href="media/cases/case3.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 03</span><span>4배속</span></div><h3>약한 LRS 신호에서 탐색</h3><p>LRS에서 낮지만 검출 가능한 농도를 측정한 뒤, HRS로 전환해 최종 가스원 위치를 결정하는 과정을 보여줍니다.</p></div>
+            </article>
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 04: 강한 LRS 신호에서 탐색"><source src="media/cases/case4.mp4" type="video/mp4"><a href="media/cases/case4.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 04</span><span>4배속</span></div><h3>강한 LRS 신호에서 탐색</h3><p>LRS에서 높은 농도를 측정한 뒤, HRS로 전환해 최종 가스원 위치를 결정하는 과정을 보여줍니다.</p></div>
+            </article>
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 05: 가까운 가스원 탐색"><source src="media/cases/case5.mp4" type="video/mp4"><a href="media/cases/case5.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 05</span><span>4배속</span></div><h3>가까운 가스원 탐색</h3><p>LRS에서 보통 수준의 농도를 측정하고, HRS 시작 위치에서 가스원까지의 이동 경로가 짧은 상황의 탐색과 최종 위치 결정을 보여줍니다.</p></div>
+            </article>
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 06: 먼 가스원 탐색"><source src="media/cases/case6.mp4" type="video/mp4"><a href="media/cases/case6.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 06</span><span>4배속</span></div><h3>먼 가스원 탐색</h3><p>LRS에서 보통 수준의 농도를 측정하고, HRS 시작 위치에서 가스원까지의 이동 경로가 긴 상황의 탐색과 최종 위치 결정을 보여줍니다.</p></div>
+            </article>
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 07: 접근 불가능한 설비 내부의 가스원"><source src="media/cases/case7.mp4" type="video/mp4"><a href="media/cases/case7.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 07</span><span>4배속</span></div><h3>접근 불가능한 설비 내부의 가스원</h3><p>로봇이 진입할 수 없는 설비 내부에 가스원이 있는 상황에서의 탐색 과정을 보여줍니다.</p></div>
+            </article>
+            <article class="case-card">
+                <div class="case-media"><video controls autoplay loop muted playsinline preload="metadata" aria-label="CASE 08: 벽 너머의 가스원"><source src="media/cases/case8.mp4" type="video/mp4"><a href="media/cases/case8.mp4">MP4</a></video></div>
+                <div class="case-copy"><div class="case-meta"><span>CASE 08</span><span>4배속</span></div><h3>벽 너머의 가스원</h3><p>로봇과 가스원 사이에 벽이 있는 상황에서의 탐색 과정을 보여줍니다.</p></div>
+            </article>
+        </div>
+        <p class="video-method-note">시연 방법: M6 · 8개 케이스 공통</p>
+    </section>
+                <section class="abstract" aria-labelledby="abstract-title-ko">
+                    <h2 class="section-title" id="abstract-title-ko">초록</h2>
+                    <div class="abstract-copy">
+                        <p>
+                            클린룸과 같은 구조화된 실내 환경에서 유해가스 누출이 발생하면,
+                            작업자의 접근을 최소화하면서 가스원에 신속히 도달해 제거하는 것이 중요하다.
+                            반도체 전공정 팹과 같이 높은 청정도가 요구되는 클린룸은 천장에서 타공 바닥으로 공기가 흐르는 수직 단방향 기류 방식을 사용하며,
+                            이 환경에서는 수평 방향 기류 성분이 거의 없어 가스원의 방향을 알려주는 풍향 단서를 얻을 수 없다.
+                        </p>
+                        <p>
+                            이동 로봇 기반 가스원 위치 추정(GSL) 연구는 대부분 수평 기류가 만드는 플룸과 풍향 측정을 핵심 단서로 삼으며,
+                            대표적인 벤치마크 역시 창고·주택·풍동 환경을 대상으로 한다.
+                            우리가 아는 한 클린룸의 수직 단방향 기류 환경을 대상으로 한 GSL 평가는 보고되지 않았다.
+                            또한 기존 연구는 사전 정보 없이 탐색을 시작하는 상황을 가정하고 위치 정확도나 농도 지도 작성에 초점을 두어,
+                            평시 순찰로 얻은 제한적인 농도 정보를 활용해 가스원에 얼마나 빨리 도달하는가는 충분히 다뤄지지 않았다.
+                        </p>
+                        <p>
+                            본 논문은 단일 가스원을 대상으로, 풍향 단서가 없는 환경에서 순찰 중 이상을 감지한 로봇이 최종 가스원 추정 위치를 결정하기까지의
+                            과정을 평가하는 벤치마크를 제안한다.
+                            장애물에서 떨어진 영역에서는 분포를 한쪽으로 치우치게 할 수평 기류가 없으므로,
+                            센서 높이 수평 단면의 가스 농도를 등방성 가우시안으로 모델링한다.
+                            로봇은 저해상도 순찰(LRS)로 사전에 정의된 지점의 농도를 측정하고,
+                            이상 농도가 검출되면 고해상도 탐색(HRS)으로 전환하여 가우시안 마르코프 랜덤 필드(GMRF)로 농도를 추정하여 가스원을 찾는다.
+                            평가는 탐색 전환부터 최종 가스원 추정 위치 결정까지의 시간과 위치 추정 오차로 한다.
+                            방법 간 비교에는 이상적 이동시간을 HRS 위치 결정 시간으로 나눈 비율에 GMRF 셀 단위의 위치 오차를 반영해 시행별로 평균한 Score를 사용하며,
+                            HRS 위치 결정 시간, 위치 추정 오차, 최종 추정 위치까지의 도착 시간은 상세 지표로 제시한다.
+                        </p>
+                        <p>
+                            ROS 2, Gazebo, Nav2 기반 시뮬레이션의 장애물 실내 환경에서 가스원의 위치, 세기, 분포 폭을 무작위로 생성하였다.
+                            탐색 시작 위치 선정 방법 3가지(순찰 최고 농도 지점, 순찰 농도 가중 무게중심, 추정 평균 최대 셀)와 이후 탐색 전략 2가지(추정 평균 최대 셀 선택, 나선 탐색)를 조합한 6개 방법을,
+                            시드를 고정한 동일 가스원 100개 중 6개 방법이 모두 정상 종료된 91개에 대해 비교하였다.
+                        </p>
+                        <p>
+                            그 결과 순찰 농도 가중 무게중심에서 시작해 나선 탐색을 수행한 방법이 가장 높은 Score(0.311)를 보였고,
+                            순찰 최고 농도 지점에서 시작한 나선 탐색(0.277)이 뒤를 이었다.
+                            모든 시작 위치 규칙에서 나선 탐색은 추정 평균 최대 셀 선택보다 빠르게 가스원 위치를 결정했으며,
+                            6개 방법 모두 평균 위치 추정 오차가 0.07 m 미만이었다.
+                        </p>
+                    </div>
+                </section>
+                <section class="content-section system-overview section-band" aria-labelledby="system-overview-title-ko">
+                    <h2 class="section-title" id="system-overview-title-ko">전체 시스템 구성</h2>
+                    <p class="overview-intro">한 번의 평가 시행: 순찰부터 최종 가스원 위치 결정까지.</p>
+                    <figure class="system-overview-figure" aria-describedby="system-flow-caption-ko">
+                        <div class="system-flow">
+                            <div class="system-stage system-patrol">
+                                <span class="system-stage-number" aria-hidden="true">01</span>
+                                <div><h3>LRS · 순찰 1회</h3><p>각 순찰 지점에서 농도 측정·GMRF 갱신</p></div>
+                                <span class="system-stage-tag">순찰</span>
+                            </div>
+                            <div class="system-connector"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v17m-5-5 5 5 5-5"/></svg><span>이상 농도 감지 · 현재 순찰 완료</span></div>
+                            <div class="system-search" role="group" aria-labelledby="system-hrs-ko">
+                                <div class="system-search-heading"><span class="system-stage-number" aria-hidden="true">02</span><h3 id="system-hrs-ko">HRS · 집중 탐색</h3><span class="system-stage-tag">반복</span></div>
+                                <p class="system-search-intro">LRS에서 구축한 GMRF를 이어서 갱신합니다.</p>
+                                <ol class="system-loop">                            <li class="system-loop-step">
+                                <h4>GMRF</h4><p>농도 분포 추정·갱신</p>
+                            </li>
+                            <li class="system-loop-step">
+                                <h4>다음 측정 위치 선택</h4><p>방법별 탐색 전략 적용</p>
+                            </li>
+                            <li class="system-loop-step">
+                                <h4>이동·농도 측정</h4><p>목표 도착 후 정지 측정</p>
+                            </li>
+                                </ol>
+                                <div class="system-feedback">
+                                    <svg viewBox="0 0 900 42" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M750 1v25H150V1m-5 6 5-6 5 6"/></svg>
+                                    <p><span aria-hidden="true">↺</span> 새 측정값으로 GMRF 갱신</p>
+                                </div>
+                            </div>
+                            <div class="system-connector"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v17m-5-5 5 5 5-5"/></svg><span>탐색 종료 조건 충족</span></div>
+                            <div class="system-outcome">
+                                <div class="system-stage system-decision"><span class="system-stage-number" aria-hidden="true">03</span><div><h3>최종 가스원 위치 결정</h3><p>추정 좌표·결정 시각 기록</p></div></div>
+                                <div class="system-outcome-arrow"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12h17m-5-5 5 5-5 5"/></svg></div>
+                                <div class="system-stage system-evaluation"><div><span class="system-stage-tag">시행 종료</span><h3>평가</h3><p>시간 · 오차 · Score</p></div></div>
+                            </div>
+                        </div>
+                        <figcaption id="system-flow-caption-ko">원래 시스템은 평상시 순찰을 반복합니다. 이 벤치마크에서는 단일 시행을 평가하며, 그림의 반복은 HRS 내부의 측정·추정 반복을 의미합니다.</figcaption>
+                    </figure>
+                </section>
+                <section class="content-section measurement" aria-labelledby="measurement-title-ko">
+                <p class="section-kicker">OBSERVATION PROTOCOL</p><h2 class="section-title" id="measurement-title-ko">측정 방법</h2>
+                <p class="overview-intro">농도 관측값을 어디에서, 얼마 동안 수집하고 어떤 값으로 기록하는지 설명합니다.</p>
+                <ol class="measurement-flow"><li><span class="method-eyebrow">01</span><h3>측정 위치 정의</h3><p>지도 좌표계의 로봇 중심을 수평면 측정 기준으로 사용합니다.</p></li><li><span class="method-eyebrow">02</span><h3>도착 후 정지·수집</h3><p>목표 지점 도착 후 설정된 정지 측정 시간 동안 농도 샘플을 수집합니다.</p></li><li><span class="method-eyebrow">03</span><h3>평균·기록</h3><p>농도 평균과 방문 위치·단계·시각·샘플 수를 함께 기록합니다.</p></li></ol>
+                <div class="measurement-setup"><figure class="measurement-diagram"><svg viewBox="0 0 480 300" role="img" aria-label="외형상 흡입구와 중앙 측정 기준을 구분한 로봇 평면 개념도">
+    <rect x="158" y="50" width="164" height="212" rx="32" fill="#fff" stroke="#c5d2e6" stroke-width="2"/>
+    <rect x="145" y="111" width="13" height="88" rx="5" fill="#a7b8d1"/><rect x="322" y="111" width="13" height="88" rx="5" fill="#a7b8d1"/>
+    <path d="M240 232V72M180 156H300" stroke="#d6dfed" stroke-dasharray="4 6"/>
+    <path d="m232 29 8-10 8 10" fill="none" stroke="#6f819b" stroke-width="2"/>
+    <text x="270" y="29" fill="#6f819b" font-size="12">로봇 전방</text>
+    <rect x="173" y="72" width="20" height="13" rx="3" fill="#8c9cb1"/><path d="M183 78H119L98 62" fill="none" stroke="#8c9cb1"/>
+    <text x="18" y="53" fill="#5b6472" font-size="13">외형상 흡입구</text>
+    <circle cx="240" cy="156" r="22" fill="#e8effc"/><circle cx="240" cy="156" r="7" fill="#356dcc"/>
+    <path d="M248 156H350L367 137" fill="none" stroke="#356dcc"/>
+    <text x="345" y="116" fill="#356dcc" font-size="13">계산·기록 기준</text>
+    <text x="240" y="287" text-anchor="middle" fill="#356dcc" font-size="14">로봇 중심 (x, y)</text>
+    </svg><figcaption>평면 개념도 · 외형 치수와 장착 위치는 축척에 맞춘 도면이 아닙니다.</figcaption></figure><div class="measurement-setup-copy"><h3>외형과 구분한 중앙 측정 기준</h3>
+                <p class="">외형상 흡입구는 로봇 중심에서 벗어나 있지만, 이 실험의 수평면 측정·기록 기준은 로봇 중심(base_link)으로 둡니다. 외형의 흡입구 위치 차이를 측정 좌표에 적용하지 않습니다.</p>
+                <p class="">가상 센서의 (x, y) 위치에서 정적 2차원 가우시안 농도장 값을 읽습니다. 농도는 0~1 범위의 상대값이며, 계산에는 높이 z를 사용하지 않습니다.</p>
+                <dl class="measurement-specs"><div><dt>위치 기준</dt><dd>로봇 중심 · 지도 좌표계</dd></div><div><dt>기본 갱신 주파수</dt><dd>20 Hz</dd></div><div><dt>LRS 정지 측정</dt><dd>방문당 1초</dd></div><div><dt>HRS 정지 측정</dt><dd>방문당 2초</dd></div></dl>
+                <p class="comparison-note">현재 모델·설정의 기본값이며 고정 규칙이 아닙니다. 실험별 설정과 실제 수신 샘플 수를 사용합니다.</p>
+                </div></div>
+                <div class="measurement-record"><div><span class="method-eyebrow">ONE VISIT → ONE OBSERVATION</span><h3>한 번의 방문을 하나의 관측값으로</h3>
+                <p class="">정지 측정 구간에 수집한 농도 샘플의 산술평균을 관측 농도로 사용하고, 이 값으로 GMRF를 갱신합니다.</p>
+                <span class="measurement-formula" data-math="\bar c_j=\frac{1}{n_j}\sum_{k=1}^{n_j}c_{j,k}">c̄_j = (1 / n_j) Σ c_j,k</span>
+                </div><div><dl class="measurement-notation" aria-label="기호와 단위"><div><dt><span data-math-display="inline" data-math="j">j</span></dt><dd>측정 방문의 번호.</dd></div><div><dt><span data-math-display="inline" data-math="c_{j,k}">c_j,k</span></dt><dd>j번째 방문에서 받은 k번째 농도 샘플 (상대값, 0~1).</dd></div><div><dt><span data-math-display="inline" data-math="n_j">n_j</span></dt><dd>해당 방문의 측정 구간 동안 실제 수신한 샘플 수.</dd></div><div><dt><span data-math-display="inline" data-math="\bar c_j">c̄_j</span></dt><dd>한 개 관측값으로 기록하는 평균 농도.</dd></div></dl></div></div>
+                <div class="measurement-record-note"><strong>방문별 기록</strong><p class="">측정 시작 시점의 위치 · 평균 농도 · 실제 샘플 수 · LRS/HRS 단계 · 측정 이벤트 시각. 기록 위치는 GMRF 셀에 대응시켜 농도 분포 갱신에 사용합니다.</p></div>
+                </section>
+                <section class="content-section evaluation-metric-definitions" aria-labelledby="metrics-title-ko">
+                <p class="section-kicker">FROM OBSERVATIONS TO PERFORMANCE</p><h2 class="section-title" id="metrics-title-ko">평가지표</h2>
+                <p class="overview-intro">위치 결정 시간과 위치 오차를 함께 비교하고, 이상적 이동 기준시간으로 위치 결정 시간의 비율을 나타냅니다.</p>
+                <article class="metric-definition" aria-labelledby="metric-ko-01"><div class="metric-definition-label"><span class="method-eyebrow">01 / 시간 · s</span><h3 id="metric-ko-01">위치 결정 시간</h3><p>가스원이 어디인지 얼마나 빨리 결정했는가? 위치 오차와 함께 비교하며, 낮을수록 좋습니다.</p></div><div class="metric-definition-body"><span class="measurement-formula" data-math="T_{\mathrm{HRS}}=t_{\mathrm{decide}}-t_{\mathrm{switch}}">T_HRS = t_decide − t_switch</span><dl class="measurement-notation" aria-label="기호와 단위"><div><dt><span data-math-display="inline" data-math="T_{\mathrm{HRS}}">T_HRS</span></dt><dd>HRS 위치 결정 소요 시간 (s).</dd></div><div><dt><span data-math-display="inline" data-math="t_{\mathrm{switch}}">t_switch</span></dt><dd>로봇이 HRS로 전환한 시뮬레이션 시각 (s).</dd></div><div><dt><span data-math-display="inline" data-math="t_{\mathrm{decide}}">t_decide</span></dt><dd>로봇이 최종 가스원 추정 좌표를 결정한 시뮬레이션 시각 (s).</dd></div></dl><p class="comparison-note">모든 방법은 동일한 LRS 절차를 사용합니다. 주 시간 비교는 HRS 전환부터 최종 가스원 위치 결정까지로 한정합니다.</p><details class="method-details"><summary>LRS 및 전체 시간 정의</summary><div><span class="measurement-formula" data-math="\begin{aligned}T_{\mathrm{LRS}}&amp;=t_{\mathrm{switch}}-t_{\mathrm{start}}\\T_{\mathrm{total}}&amp;=T_{\mathrm{LRS}}+T_{\mathrm{HRS}}\end{aligned}">T_LRS = t_switch − t_start; T_total = T_LRS + T_HRS</span><dl class="measurement-notation" aria-label="기호와 단위"><div><dt><span data-math-display="inline" data-math="t_{\mathrm{start}}">t_start</span></dt><dd>순찰 시작 시각 (시뮬레이션 초).</dd></div><div><dt><span data-math-display="inline" data-math="T_{\mathrm{LRS}}">T_LRS</span></dt><dd>순찰 시작부터 HRS 전환까지의 시간. 전환 대기가 있다면 포함 (s).</dd></div><div><dt><span data-math-display="inline" data-math="T_{\mathrm{total}}">T_total</span></dt><dd>순찰 시작부터 최종 위치 결정까지의 시간 (s). 이후 접근 시간은 제외.</dd></div></dl></div></details></div></article>
+                <article class="metric-definition" aria-labelledby="metric-ko-02"><div class="metric-definition-label"><span class="method-eyebrow">02 / 정확도 · m</span><h3 id="metric-ko-02">위치 추정 오차</h3><p>최종 추정 위치가 실제 가스원에 얼마나 가까운가? 낮을수록 좋습니다.</p></div><div class="metric-definition-body"><span class="measurement-formula" data-math="E=\|\hat{\mathbf p}-\mathbf p_{\mathrm{src}}\|_2=\sqrt{(\hat x-x_{\mathrm{src}})^2+(\hat y-y_{\mathrm{src}})^2}">E = ‖p̂ − p_src‖₂ = √[(x̂ − x_src)² + (ŷ − y_src)²]</span><dl class="measurement-notation" aria-label="기호와 단위"><div><dt><span data-math-display="inline" data-math="E">E</span></dt><dd>직선거리로 계산한 위치 추정 오차 (m).</dd></div><div><dt><span data-math-display="inline" data-math="\hat{\mathbf p}=(\hat x,\hat y)">p̂ = (x̂, ŷ)</span></dt><dd>지도 좌표계의 최종 가스원 추정 좌표 (m).</dd></div><div><dt><span data-math-display="inline" data-math="\mathbf p_{\mathrm{src}}">p_src</span></dt><dd>평가 기준인 실제 가스원 좌표 (x_src, y_src), Ground Truth (m).</dd></div><div><dt><span data-math-display="inline" data-math="\|\cdot\|_2">‖·‖₂</span></dt><dd>유클리드 노름. 두 위치 사이의 직선거리.</dd></div></dl><p class="comparison-note">실제 가스원이 주행 불가능한 영역(설비 내부·벽·안전거리)에 있으면 로봇이 도달할 수 없으므로, 가장 가까운 도달 가능 지점을 <span data-math-display="inline" data-math="\mathbf p_{\mathrm{src}}">p_src</span> 대신 기준으로 사용합니다.</p><details class="method-details"><summary>최종 추정 좌표를 결정하는 방법</summary><div><span class="measurement-formula" data-math="j^*=\underset{j\in\mathcal{M}_{\mathrm{HRS}}}{\operatorname{arg\,max}}\bar c_j,\qquad \hat{\mathbf p}=q(\mathbf p_{j^*})">j* = arg max c̄_j over HRS visits; p̂ = q(p_j*)</span><dl class="measurement-notation" aria-label="기호와 단위"><div><dt><span data-math-display="inline" data-math="\mathcal{M}_{\mathrm{HRS}}">M_HRS</span></dt><dd>유효한 HRS 측정 방문 번호의 집합.</dd></div><div><dt><span data-math-display="inline" data-math="j^*,\;\bar c_j">j*, c̄_j</span></dt><dd>평균 측정 농도가 최대인 방문 번호와 Measurement에서 정의한 평균 농도.</dd></div><div><dt><span data-math-display="inline" data-math="\mathbf p_j,\;q(\cdot)">p_j, q(·)</span></dt><dd>방문 시 기록 위치 (m). q는 그 위치를 대응하는 GMRF 셀 중심으로 변환합니다.</dd></div></dl><p class="comparison-note">현재 브랜치는 HRS 평균 측정 농도가 가장 높았던 지점의 셀을 최종 위치로 확정합니다. 동점이면 먼저 기록된 측정을 유지합니다. GMRF 추정은 탐색에 활용되며, 최종 기록 좌표는 이 최대 측정값 규칙을 따릅니다.</p></div></details></div></article>
+                <article class="metric-definition" aria-labelledby="metric-ko-03"><div class="metric-definition-label"><span class="method-eyebrow">03 / 기준시간 비율</span><h3 id="metric-ko-03">위치 결정 시간 비율</h3><p>이상적 이동시간을 기준으로 위치 결정 속도를 비교합니다. 위치 오차와 함께 평가합니다.</p></div><div class="metric-definition-body"><span class="measurement-formula" data-math="\eta=\frac{T^*}{T_{\mathrm{HRS}}},\qquad T^*=\frac{L^*}{v_{\max}}">η = T* / T_HRS; T* = L* / v_max</span><dl class="measurement-notation" aria-label="기호와 단위"><div><dt><span data-math-display="inline" data-math="\eta">η</span></dt><dd>이상적 이동 기준시간을 위치 결정 시간으로 나눈 무차원 비율.</dd></div><div><dt><span data-math-display="inline" data-math="T^*">T*</span></dt><dd>기준 최단경로를 설정 최고속도로 이동하는 이상적 시간 (s).</dd></div><div><dt><span data-math-display="inline" data-math="L^*">L*</span></dt><dd>HRS 전환 시점의 로봇 위치에서 실제 가스원까지의 최단 주행 경로 길이 (m).</dd></div><div><dt><span data-math-display="inline" data-math="v_{\max}">v_max</span></dt><dd>해당 실험에 사용하는 로봇에 설정된 최고속도 (m/s). 실험별 설정값을 사용합니다.</dd></div><div><dt><span data-math-display="inline" data-math="T_{\mathrm{HRS}}">T_HRS</span></dt><dd>앞에서 정의한 위치 결정 시간 (s). 비율 계산 시 양수여야 합니다.</dd></div></dl><p class="comparison-note">T*는 평가를 위한 기준시간입니다. 로봇이 이상적 이동시간보다 먼저 가스원 위치를 결정하면 비율은 1을 넘을 수 있습니다. 위치 오차와 함께 해석합니다.</p><details class="method-details"><summary>기준 경로의 조건</summary><div><p class="">L*는 방법 간 동일한 지도와 주행 제약으로 계산합니다. T*에는 가감속·회전·정지 시간이 포함되지 않습니다. 실제 가스원이 도달 불가능한 위치라면, 비율을 계산하기 전에 도달 가능한 기준점을 별도로 정의해야 합니다.</p></div></details></div></article>
+                <article class="metric-definition" aria-labelledby="metric-ko-04">
+                    <div class="metric-definition-label">
+                        <span class="method-eyebrow">04 / 오차 반영 시간 효율</span>
+                        <h3 id="metric-ko-04">Score</h3>
+                        <p>시행별 시간 비율에 그 시행의 위치 오차를 반영한 뒤 평균하여, 동일한 시행 집합에서 방법별 성능을 비교합니다. 높을수록 좋습니다.</p>
+                    </div>
+                    <div class="metric-definition-body">
+                        <span class="measurement-formula" data-math="\mathrm{Score}=\frac{1}{N}\sum_{i=1}^{N}\frac{\eta_i}{1+E_i/d}=\frac{1}{N}\sum_{i=1}^{N}\frac{T_i^*}{T_{\mathrm{HRS},i}}\cdot\frac{d}{d+E_i}">Score = (1/N) Σ η_i / (1 + E_i/d) = (1/N) Σ (T*_i / T_HRS,i) · d / (d + E_i)</span>
+                        <dl class="measurement-notation" aria-label="기호와 단위">
+                            <div><dt><span data-math-display="inline" data-math="N">N</span></dt><dd>방법별 비교에 포함하는 시행 수. 방법 간 동일한 시행 집합을 사용합니다.</dd></div>
+                            <div><dt><span data-math-display="inline" data-math="i">i</span></dt><dd>시행 번호. 1부터 N까지의 각 시행을 나타냅니다.</dd></div>
+                            <div><dt><span data-math-display="inline" data-math="\eta_i">η_i</span></dt><dd>i번째 시행의 시간 비율. 모든 시행을 동일한 비중으로 평균합니다.</dd></div>
+                            <div><dt><span data-math-display="inline" data-math="T_i^*">T*_i</span></dt><dd>i번째 시행의 이상적 이동 기준시간 (s).</dd></div>
+                            <div><dt><span data-math-display="inline" data-math="T_{\mathrm{HRS},i}">T_HRS,i</span></dt><dd>i번째 시행의 HRS 위치 결정 소요 시간 (s).</dd></div>
+                            <div><dt><span data-math-display="inline" data-math="E_i">E_i</span></dt><dd>i번째 시행의 위치 추정 오차 (m). 02에서 정의한 값입니다.</dd></div>
+                            <div><dt><span data-math-display="inline" data-math="d">d</span></dt><dd>GMRF 셀 크기 0.5 m. 최종 추정 위치는 셀 중심이므로 추정의 분해능에 해당합니다.</dd></div>
+                        </dl>
+                        <p class="comparison-note"><span data-math-display="inline" data-math="E_i/d">E_i/d</span>는 오차를 GMRF 셀 수로 나타낸 값입니다. 오차가 0이면 <span data-math-display="inline" data-math="\eta_i">η_i</span>를 그대로, 1셀 오차면 절반, 2셀 오차면 1/3을 반영합니다. 성공 임계값은 두지 않습니다. 평균 기준시간을 평균 결정 시간으로 나누지 않고, 시행별 값을 계산한 뒤 평균합니다.</p>
+                    </div>
+                </article>
+                <details class="method-details"><summary>보조 지표: 추정 위치 도착 시간</summary><div><span class="measurement-formula" data-math="T_{\mathrm{arrival}}=t_{\mathrm{arrival}}-t_{\mathrm{switch}}">T_arrival = t_arrival − t_switch</span><dl class="measurement-notation" aria-label="기호와 단위"><div><dt><span data-math-display="inline" data-math="t_{\mathrm{arrival}}">t_arrival</span></dt><dd>주행 도착 기준에 따라 로봇이 최종 추정 위치에 도착한 시각 (시뮬레이션 s).</dd></div><div><dt><span data-math-display="inline" data-math="t_{\mathrm{switch}}">t_switch</span></dt><dd>HRS 전환 시각 (시뮬레이션 s).</dd></div><div><dt><span data-math-display="inline" data-math="T_{\mathrm{arrival}}">T_arrival</span></dt><dd>HRS 전환부터 위치 결정·접근을 거쳐 도착할 때까지의 시간 (s).</dd></div></dl><p class="">실제 접근 성능을 평가할 때 추가하는 보조 지표입니다. 추정 위치에 도착해도 실제 가스원에 도착한 것은 아닐 수 있으므로 위치 오차와 함께 제시합니다.</p></div></details>
+                <p class="comparison-note">다음 결과에서는 공통 시드 91개에 대해 M1–M6를 Score로 비교하고, 위치 오차와 위치 결정 시간은 상세 결과에 제공합니다. 위치 결정 시간은 도착과 구분하여 위치 결정 이벤트를 기준으로 계산했습니다.</p>
+                </section>
+                <section class="content-section evaluation-preview section-band" aria-labelledby="evaluation-title-ko">
+        <p class="section-kicker">BENCHMARK RESULTS</p><h2 class="section-title" id="evaluation-title-ko">평가 결과</h2><p class="overview-intro">M1–M6가 가스원 위치를 얼마나 빠르고 정확하게 찾았는지 Score로 비교합니다.</p>
+        <p class="results-status"><strong>공통 시드 91개 · 546회 실행</strong> · 6개 방법이 모두 정상 종료된 시드만 포함했으며, 각 방법은 같은 가스원 조건에서 독립적으로 실행했습니다.</p>
+        <div class="result-main">
+            <ul class="result-highlights"><li><span>Score 1위</span><strong>M6</strong><p>Score 0.311</p></li></ul>
+            <figure class="metric-panel"><h3>Score</h3><p class="metric-description">가스원 위치를 얼마나 빠르고 정확하게 찾았는지를 하나로 나타낸 점수입니다. 빨리 찾을수록, 오차가 작을수록 높아집니다.</p><div class="metric-scale" aria-hidden="true"><span>0</span><span>0.1</span><span>0.2</span><span>0.3</span><span>0.4</span></div><ol class="metric-bars" aria-label="Score"><li class="is-best"><span>M6</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 77.75%"></div></div><span class="metric-value">0.311</span></li><li><span>M2</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 69.17%"></div></div><span class="metric-value">0.277</span></li><li><span>M4</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 68.29%"></div></div><span class="metric-value">0.273</span></li><li><span>M5</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 66.86%"></div></div><span class="metric-value">0.267</span></li><li><span>M1</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 60.90%"></div></div><span class="metric-value">0.244</span></li><li><span>M3</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 59.66%"></div></div><span class="metric-value">0.239</span></li></ol><figcaption>평균 · 높을수록 좋음 · Score 순으로 정렬</figcaption></figure>
+        </div>
+        <p class="comparison-note"><span data-math-display="inline" data-math="T^*">T*</span>는 로그의 첫 HRS 계획 위치에서 복원한 최단경로(<span data-math-display="inline" data-math="v_{\max}">v_max</span> = 0.18 m/s)로 계산한 참고값입니다.</p>
+        <details class="method-details result-details">
+            <summary>방법별 상세 결과 보기</summary>
+            <div>
+                <div class="evaluation-metrics"><figure class="metric-panel"><h3>가스원 위치 추정 오차</h3><p class="metric-description">추정 위치와 가스원(도달 가능한 기준점) 사이 거리의 평균입니다.</p><div class="metric-scale" aria-hidden="true"><span>0</span><span>0.02</span><span>0.04</span><span>0.06</span><span>0.08 m</span></div><ol class="metric-bars" aria-label="가스원 위치 추정 오차"><li><span>M6</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 70.25%"></div></div><span class="metric-value">0.056</span></li><li class="is-best"><span>M2</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 27.50%"></div></div><span class="metric-value">0.022</span></li><li><span>M4</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 48.12%"></div></div><span class="metric-value">0.038</span></li><li><span>M5</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 80.00%"></div></div><span class="metric-value">0.064</span></li><li><span>M1</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 29.12%"></div></div><span class="metric-value">0.023</span></li><li><span>M3</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 63.38%"></div></div><span class="metric-value">0.051</span></li></ol><figcaption>평균 · 미터(m) · 낮을수록 좋음 · Score 순으로 정렬</figcaption></figure><figure class="metric-panel"><h3>가스원 위치 결정 시간</h3><p class="metric-description">HRS 전환부터 최종 가스원 추정 위치 결정까지의 시뮬레이션 시간입니다.</p><div class="metric-scale" aria-hidden="true"><span>0</span><span>100</span><span>200</span><span>300</span><span>400 s</span></div><ol class="metric-bars" aria-label="가스원 위치 결정 시간"><li class="is-best"><span>M6</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 49.95%"></div><div class="metric-iqr" style="--iqr-start: 40.61%; --iqr-width: 22.11%"></div></div><span class="metric-value">199.8</span></li><li><span>M2</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 62.02%"></div><div class="metric-iqr" style="--iqr-start: 53.02%; --iqr-width: 16.55%"></div></div><span class="metric-value">248.1</span></li><li><span>M4</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 61.42%"></div><div class="metric-iqr" style="--iqr-start: 51.14%; --iqr-width: 19.14%"></div></div><span class="metric-value">245.7</span></li><li><span>M5</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 56.25%"></div><div class="metric-iqr" style="--iqr-start: 45.35%; --iqr-width: 26.66%"></div></div><span class="metric-value">225.0</span></li><li><span>M1</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 67.42%"></div><div class="metric-iqr" style="--iqr-start: 59.08%; --iqr-width: 19.75%"></div></div><span class="metric-value">269.7</span></li><li><span>M3</span><div class="metric-bar-track" aria-hidden="true"><div class="metric-bar" style="--bar-width: 67.25%"></div><div class="metric-iqr" style="--iqr-start: 58.84%; --iqr-width: 20.93%"></div></div><span class="metric-value">269.0</span></li></ol><figcaption>막대: 중앙값 · 선: 25–75% 구간 · 초(s) · 낮을수록 좋음</figcaption></figure></div>
+                <h3 class="results-subtitle" id="results-summary-ko">방법별 결과 요약</h3>
+                <div class="table-scroll" role="region" tabindex="0" aria-label="방법별 결과표">
+                    <table class="comparison-table results-table" aria-labelledby="results-summary-ko" aria-describedby="results-note-ko">
+                        <thead><tr><th scope="col">방법</th><th scope="col">시작 위치</th><th scope="col">이후 탐색</th><th scope="col">Score</th><th scope="col">결정 시간 (s)<br>중앙값 [Q1–Q3]</th><th scope="col">결정 시간 (s)<br>평균 ± 표준편차</th><th scope="col">평균 오차 (m)</th><th scope="col">오차 0 m<br>비율</th></tr></thead>
+                        <tbody><tr><th scope="row">M6</th><td>농도 가중 무게중심</td><td>나선 탐색</td><td><strong>0.311</strong></td><td><strong>199.8</strong> <span class="result-iqr">[162.4–250.9]</span></td><td><strong>209.9</strong> ± 62.3</td><td>0.056</td><td>90.1%</td></tr><tr><th scope="row">M2</th><td>순찰 최고 농도</td><td>나선 탐색</td><td>0.277</td><td>248.1 <span class="result-iqr">[212.1–278.3]</span></td><td>243.0 ± 58.3</td><td><strong>0.022</strong></td><td>95.6%</td></tr><tr><th scope="row">M4</th><td>추정 평균 최대</td><td>나선 탐색</td><td>0.273</td><td>245.7 <span class="result-iqr">[204.6–281.1]</span></td><td>241.2 ± 59.9</td><td>0.038</td><td>92.3%</td></tr><tr><th scope="row">M5</th><td>농도 가중 무게중심</td><td>추정 평균 최대 셀</td><td>0.267</td><td>225.0 <span class="result-iqr">[181.4–288.1]</span></td><td>242.0 ± 83.5</td><td>0.064</td><td>89.0%</td></tr><tr><th scope="row">M1</th><td>순찰 최고 농도</td><td>추정 평균 최대 셀</td><td>0.244</td><td>269.7 <span class="result-iqr">[236.3–315.3]</span></td><td>279.9 ± 66.7</td><td>0.023</td><td><strong>96.7%</strong></td></tr><tr><th scope="row">M3</th><td>추정 평균 최대</td><td>추정 평균 최대 셀</td><td>0.239</td><td>269.0 <span class="result-iqr">[235.3–319.1]</span></td><td>277.1 ± 61.1</td><td>0.051</td><td>93.4%</td></tr></tbody>
+                    </table>
+                </div>
+                <p class="comparison-note" id="results-note-ko">Score 순으로 정렬했으며, 굵은 값은 각 열에서 가장 좋은 결과입니다.</p>
+                <h3 class="results-subtitle">사용한 데이터 및 집계 기준</h3>
+                <p>대상: M1–M6가 모두 정상 종료(classification = normal)된 시드 91개. 제외한 시드 9개: 103, 107, 114, 124, 138, 140, 145, 175, 182.</p><p>보조 지표: HRS 전환부터 추정 위치 도착까지의 시간 중앙값은 207.8–280.2 s입니다. LRS 순찰 시간은 모든 시간 지표에서 제외했습니다.</p>
+                <p><a href="assets/results/method-summary-20261026.csv" download>방법별 집계 데이터 다운로드 (CSV)</a></p>
+            </div>
+        </details>
+    </section>
+            </div>
+        </div>
+    </main>
+    <script>
+
+        // Autoplay muted clips only while visible; hidden translations stay paused.
+        const visibleVideos = new Set();
+        function updateVideoPlayback(video) {
+            if (visibleVideos.has(video) && !document.hidden && !video.closest('[hidden]')) {
+                video.play().catch(() => { /* Native controls remain available if autoplay is blocked. */ });
+            } else {
+                video.pause();
+            }
+        }
+        const videoObserver = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && entry.intersectionRatio >= 0.15) visibleVideos.add(entry.target);
+                else visibleVideos.delete(entry.target);
+                updateVideoPlayback(entry.target);
+            });
+        }, { threshold: [0, 0.15] });
+        document.querySelectorAll('video').forEach(video => videoObserver.observe(video));
+        document.addEventListener('visibilitychange', () => {
+            visibleVideos.forEach(updateVideoPlayback);
+        });
+
+        const contentRoot = document.getElementById('project-content');
+        const languageToggle = document.getElementById('language-toggle');
+        const languagePanels = contentRoot.querySelectorAll('.localized-content');
+        const languageStatus = document.getElementById('language-status');
+        const languageStorageKey = 'cleanroom-content-language';
+        const sectionNav = document.querySelector('.section-nav');
+        const sectionLinks = [...sectionNav.querySelectorAll('a')];
+        const siteHeader = document.querySelector('.site-header');
+        const topNav = document.querySelector('.top-nav');
+        const headerSides = [document.querySelector('.lab-brand'), document.querySelector('.top-nav-controls')];
+        const menuToggle = document.getElementById('section-menu-toggle');
+        const menuMeasure = sectionNav.cloneNode(true);
+        menuMeasure.removeAttribute('id');
+        menuMeasure.removeAttribute('aria-label');
+        menuMeasure.classList.add('section-nav-measure');
+        menuMeasure.setAttribute('aria-hidden', 'true');
+        menuMeasure.inert = true;
+        siteHeader.append(menuMeasure);
+        const measuredLinks = [...menuMeasure.querySelectorAll('a')];
+        const measuredList = menuMeasure.querySelector('ul');
+        let compactMenu = false;
+        let menuOpen = false;
+        let currentLanguage = 'en';
+
+        function setMenuOpen(open, restoreFocus = false) {
+            menuOpen = compactMenu && open;
+            menuToggle.setAttribute('aria-expanded', String(menuOpen));
+            menuToggle.setAttribute('aria-label', currentLanguage === 'ko'
+                ? (menuOpen ? '섹션 메뉴 닫기' : '섹션 메뉴 열기')
+                : (menuOpen ? 'Close section menu' : 'Open section menu'));
+            sectionNav.hidden = compactMenu && !menuOpen;
+            if (restoreFocus && compactMenu) menuToggle.focus();
+        }
+
+        function updateHeaderOffset() {
+            // Equal side columns keep the menu centered on the full viewport.
+            const sideWidth = Math.ceil(Math.max(...headerSides.map(element => element.getBoundingClientRect().width)));
+            topNav.style.setProperty('--header-side-width', `${sideWidth}px`);
+            const layout = getComputedStyle(topNav);
+            const availableWidth = topNav.clientWidth - parseFloat(layout.paddingLeft)
+                - parseFloat(layout.paddingRight) - 2 * sideWidth - 2 * parseFloat(layout.columnGap);
+            const nextCompact = measuredList.getBoundingClientRect().width > availableWidth;
+            if (nextCompact !== compactMenu) {
+                const menuHadFocus = sectionNav.contains(document.activeElement);
+                const toggleHadFocus = document.activeElement === menuToggle;
+                compactMenu = nextCompact;
+                siteHeader.dataset.menuCompact = String(compactMenu);
+                menuToggle.hidden = !compactMenu;
+                setMenuOpen(false);
+                if (compactMenu && menuHadFocus) menuToggle.focus();
+                if (!compactMenu && toggleHadFocus) sectionLinks[0].focus();
+            }
+            siteHeader.dataset.menuReady = 'true';
+            document.documentElement.style.setProperty('--header-offset', `${siteHeader.getBoundingClientRect().height + 20}px`);
+        }
+        const headerObserver = new ResizeObserver(updateHeaderOffset);
+        headerObserver.observe(siteHeader);
+        headerSides.forEach(element => headerObserver.observe(element));
+        headerObserver.observe(measuredList);
+        window.addEventListener('resize', updateHeaderOffset);
+        document.fonts?.ready.then(updateHeaderOffset);
+        updateHeaderOffset();
+
+        menuToggle.addEventListener('click', () => setMenuOpen(!menuOpen));
+        sectionLinks.forEach(link => link.addEventListener('click', event => {
+            if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            if (compactMenu) {
+                setMenuOpen(false);
+                const target = document.getElementById(link.hash.slice(1));
+                if (target) {
+                    target.tabIndex = -1;
+                    target.focus({ preventScroll: true });
+                }
+            }
+        }));
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && menuOpen) {
+                event.preventDefault();
+                setMenuOpen(false, true);
+            }
+        });
+        document.addEventListener('click', event => {
+            if (menuOpen && !siteHeader.contains(event.target)) setMenuOpen(false);
+        });
+        siteHeader.addEventListener('focusout', () => {
+            requestAnimationFrame(() => {
+                if (menuOpen && !siteHeader.contains(document.activeElement)) setMenuOpen(false);
+            });
+        });
+
+        function captureReadingPosition() {
+            const scrollY = window.scrollY;
+            const readingLine = siteHeader.getBoundingClientRect().bottom + 20;
+            const panel = [...languagePanels].find(panel => !panel.hidden);
+            const sections = panel ? [...panel.querySelectorAll(':scope > section')] : [];
+            for (let index = sections.length - 1; index >= 0; index--) {
+                const section = sections[index];
+                const rect = section.getBoundingClientRect();
+                if (rect.top > readingLine) continue;
+                const end = sections[index + 1]?.getBoundingClientRect().top ?? rect.bottom;
+                return {
+                    scrollY,
+                    section: section.getAttribute('aria-labelledby').replace(/-(en|ko)$/, ''),
+                    progress: Math.min(1, (readingLine - rect.top) / Math.max(1, end - rect.top))
+                };
+            }
+            return { scrollY };
+        }
+
+        function restoreReadingPosition(position, language) {
+            let top = position.scrollY;
+            if (position.section) {
+                const section = document.getElementById(`${position.section}-${language}`)?.closest('section');
+                if (section) {
+                    const rect = section.getBoundingClientRect();
+                    const end = section.nextElementSibling?.getBoundingClientRect().top ?? rect.bottom;
+                    const readingLine = siteHeader.getBoundingClientRect().bottom + 20;
+                    top = window.scrollY + rect.top + position.progress * (end - rect.top) - readingLine;
+                }
+            }
+            window.scrollTo({ top, left: window.scrollX, behavior: 'instant' });
+        }
+
+        let languageScrollFrame;
+        function setContentLanguage(language, announce = false, preservePosition = false) {
+            if (language !== 'en' && language !== 'ko') return;
+            // Capture the viewport before hiding a panel; the URL hash may refer to an older section.
+            const readingPosition = preservePosition ? captureReadingPosition() : null;
+            if (readingPosition) {
+                cancelAnimationFrame(languageScrollFrame);
+                document.documentElement.classList.add('switching-language');
+            }
+            currentLanguage = language;
+            languageToggle.dataset.language = language;
+            languageToggle.lang = language;
+            languageToggle.setAttribute('aria-label', language === 'ko'
+                ? '현재 본문 언어: 한국어. 영어로 전환합니다.'
+                : 'Current content language: English. Switch to Korean.');
+            languageToggle.title = language === 'ko' ? 'Switch to English' : '한국어로 전환';
+            languagePanels.forEach(panel => {
+                panel.hidden = panel.lang !== language;
+                if (panel.hidden) panel.querySelectorAll('video').forEach(video => video.pause());
+            });
+            document.querySelectorAll('[data-localized-copy]').forEach(element => {
+                element.textContent = element.getAttribute(`data-label-${language}`);
+                element.lang = language;
+            });
+            sectionNav.lang = language;
+            menuToggle.lang = language;
+            sectionNav.setAttribute('aria-label', language === 'ko' ? '페이지 목차' : 'Page sections');
+            sectionLinks.forEach(link => {
+                if (link.dataset.section) {
+                    const heading = document.getElementById(`${link.dataset.section}-${language}`);
+                    link.setAttribute('href', `#${heading.id}`);
+                    link.textContent = heading.textContent;
+                } else {
+                    link.textContent = link.getAttribute(`data-label-${language}`);
+                }
+            });
+            measuredLinks.forEach((link, index) => { link.textContent = sectionLinks[index].textContent; });
+            menuMeasure.lang = language;
+            updateHeaderOffset();
+            setMenuOpen(menuOpen);
+            // Translate the URL fragment without navigating away from the current reading position.
+            const anchoredLink = sectionLinks.find(link => link.dataset.section &&
+                ['en', 'ko'].some(lang => location.hash === `#${link.dataset.section}-${lang}`));
+            if (anchoredLink && location.hash !== anchoredLink.hash) {
+                history.replaceState(history.state, '', anchoredLink.hash);
+            }
+            if (announce) {
+                languageStatus.lang = language;
+                languageStatus.textContent = language === 'ko'
+                    ? '전체 본문을 한국어로 표시합니다.'
+                    : 'All content is now displayed in English.';
+            }
+            try {
+                localStorage.setItem(languageStorageKey, language);
+            } catch {
+                // Language switching also works when browser storage is unavailable.
+            }
+            if (readingPosition) {
+                restoreReadingPosition(readingPosition, language);
+                languageScrollFrame = requestAnimationFrame(() => {
+                    document.documentElement.classList.remove('switching-language');
+                });
+            }
+        }
+
+        languageToggle.addEventListener('click', () => {
+            setContentLanguage(currentLanguage === 'en' ? 'ko' : 'en', true, true);
+        });
+
+        function hashLanguage() {
+            const target = document.getElementById(location.hash.slice(1));
+            return target?.closest('.localized-content')?.lang;
+        }
+
+        window.addEventListener('hashchange', () => {
+            const language = hashLanguage();
+            if (language && language !== currentLanguage) {
+                setContentLanguage(language);
+                document.getElementById(location.hash.slice(1)).scrollIntoView();
+            }
+        });
+
+        try {
+            setContentLanguage(hashLanguage() || localStorage.getItem(languageStorageKey) || 'en');
+        } catch {
+            setContentLanguage(hashLanguage() || 'en');
+        }
+    </script>
+</body>
+</html>
